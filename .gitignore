@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Ignore everything in the data and output folders
+data/**
+outputs/**
+
+# Exception for .gitkeep
+!*/
+!**/.gitkeep

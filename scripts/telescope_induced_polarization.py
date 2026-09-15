@@ -186,7 +186,7 @@ plt.xlabel("Orientation [deg]")
 plt.ylabel("Normalized irradiance")
 plt.title(
     f"Telescope-induced polarization"
-    f"\nRelative error (Max): {relative_error_irradiance_max:.2%}, "
+    f"\nRelative error (Max): {relative_error_irradiance_max:.2%}\n"
     f"Relative error (Mean): {relative_error_irradiance_mean:.2%}\n"
 )
 

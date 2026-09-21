@@ -23,6 +23,7 @@ for key, value in dark_dict.items():
     )
 
 dark_cube = dark_dict["orcaCube"]
+dark = dark_cube.mean(axis=0)
 dark_bg = dark_dict["orcaBg"]
 
 fig_dark, ax = plt.subplots(
@@ -31,9 +32,9 @@ fig_dark, ax = plt.subplots(
     constrained_layout=True,
 )
 
-im0 = ax[0].imshow(dark_cube.mean(axis=0), cmap="viridis")
+im0 = ax[0].imshow(dark, cmap="viridis")
 im1 = ax[1].imshow(dark_bg, cmap="viridis")
-im2 = ax[2].imshow(dark_cube.mean(axis=0) - dark_bg, cmap="viridis")
+im2 = ax[2].imshow(dark - dark_bg, cmap="viridis")
 
 for axis in ax:
     axis.set_xticks([])
@@ -104,7 +105,7 @@ for id in ids:
     data_dict = np.load(data_filename, allow_pickle=True).item()
     data_cube = data_dict["orcaCube"]
 
-    data = data_cube.mean(axis=0) - dark_bg
+    data = data_cube.mean(axis=0) - dark
 
     data_images.append(data)
     irradiance_max.append(data.max())
@@ -196,3 +197,5 @@ fig_telescope_induced_polarization.savefig(
     bbox_inches="tight",
     pad_inches=0.01,
 )
+
+plt.show()

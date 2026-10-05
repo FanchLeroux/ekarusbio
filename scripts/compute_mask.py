@@ -14,6 +14,9 @@ from ekarusbio.config import Config
 config = Config()
 fig_dir = config.root_dir / "outputs"
 
+# %% functions definitions
+
+
 # %% parameters
 
 hwp_pixel_pitch = 10e-6  # [m]
@@ -48,7 +51,9 @@ mask[
     center_vertical_filter[0]
     - grey_width_pixels // 2 : center_vertical_filter[0]
     + grey_width_pixels // 2,
-] = np.linspace(1, 0, grey_width_pixels + 1)[:-1]
+] = np.linspace(1, 0, grey_width_pixels + 1)[
+    :-1
+]  # adapt to first Bi-O edge mask prototype 1 fast axis map
 mask[
     :,
     center_vertical_filter[0] + grey_width_pixels // 2 : filters_frontier,
@@ -61,17 +66,38 @@ mask[
     - grey_width_pixels // 2 : center_horizontal_filter[1]
     + grey_width_pixels // 2,
     filters_frontier:,
-] = np.linspace(1, 0, grey_width_pixels + 1)[:-1].reshape(-1, 1)
+] = np.linspace(1, 0, grey_width_pixels + 1)[:-1].reshape(
+    -1, 1
+)  # adapt to first Bi-O edge mask prototype 1 fast axis map
 mask[center_horizontal_filter[1] + grey_width_pixels // 2 :, filters_frontier:] = 0
 
 # %% compute fast axis orientations map
 
-fast_axis_orientations = 0.5 * np.arccos(np.sqrt(mask))
-fast_axis_orientations = np.rad2deg(fast_axis_orientations)  # [deg]
-fast_axis_orientations[
+fast_axis_orientation_map_computed = 0.5 * np.arccos(np.sqrt(mask))
+fast_axis_orientation_map_computed = np.rad2deg(
+    fast_axis_orientation_map_computed
+)  # [deg]
+fast_axis_orientation_map_computed[
     :,
     :filters_frontier,
-] += 45  # adapt to first Bi-O edge mask prototype fast axis map
+] += 45  # adapt to first Bi-O edge mask prototype 1 fast axis map
+
+# %% save computed fast axis orientations map
+
+fast_axis_orientations_filename = (
+    f"bioedge_fast_axis_map__"
+    f"pitch_{hwp_pixel_pitch * 1e6:.0f}um__"
+    f"grey_width_{grey_width * 1e6:.0f}um__"
+    f"separation_{separation * 1e3:.1f}mm__"
+    f"extent_{mask_extent_x * 1e3:.0f}x{mask_extent_y * 1e3:.0f}_mm".replace(".", "p")
+    + ".fits"
+)
+
+fits.writeto(
+    fig_dir / fast_axis_orientations_filename,
+    fast_axis_orientation_map_computed,
+    overwrite=True,
+)
 
 # %% visualize the fast axis orientations map
 
@@ -80,7 +106,7 @@ y_extent_mm = mask_extent_y * 1e3
 
 fig_fast_axis_orientations = plt.figure(figsize=(3.45, 0.7 * 3.45))
 plt.imshow(
-    fast_axis_orientations,
+    fast_axis_orientation_map_computed,
     cmap="gray",
     extent=[
         -x_extent_mm / 2,
@@ -94,10 +120,6 @@ plt.xlabel("x [mm]")
 plt.ylabel("y [mm]")
 plt.title("Bi-O edge fast axis orientations map [deg]")
 
-fig_fast_axis_orientations.savefig(
-    fig_dir / "fast_axis_orientations.pdf", dpi=300, bbox_inches="tight"
-)
-
 # %% import Bi-O edge mask first prototype fast axis orientations map
 
 data_dir = config.root_dir / "data" / "bioedge_mask_prototype_1"
@@ -109,17 +131,23 @@ fast_axis_orientations_map_prototype_1 = fits.getdata(data_dir / filename)
 
 plt.figure()
 plt.imshow(
-    fast_axis_orientations - fast_axis_orientations_map_prototype_1,
+    np.abs(fast_axis_orientation_map_computed - fast_axis_orientations_map_prototype_1),
     cmap="RdBu",
     vmin=-5,
     vmax=5,
 )
+plt.title(
+    "Difference between computed and prototype 1\nfast axis orientations maps [deg]"
+)
+plt.xlabel("x [pixel]")
+plt.ylabel("y [pixel]")
+plt.colorbar(label="Difference [deg]", shrink=0.56, pad=0.04)
 
 # %%
 
 n_px_extra = 10
 
-gw_vertical = fast_axis_orientations[
+gw_vertical = fast_axis_orientation_map_computed[
     fast_axis_orientations_map_prototype_1.shape[0] // 2,
     center_vertical_filter[0]
     - grey_width_pixels // 2
@@ -127,7 +155,7 @@ gw_vertical = fast_axis_orientations[
     + grey_width_pixels // 2
     + n_px_extra,
 ]
-gw_horizontal = fast_axis_orientations[
+gw_horizontal = fast_axis_orientation_map_computed[
     center_horizontal_filter[1]
     - grey_width_pixels // 2
     - n_px_extra : center_horizontal_filter[1]
@@ -187,7 +215,7 @@ ax2.set_ylabel("Fast axis orientation [deg]")
 ax2.set_title("Horizontal grey region")
 ax2.legend(loc="lower right", bbox_to_anchor=(1.0, 0.51), fontsize=10)
 im = ax3.imshow(
-    fast_axis_orientations,
+    fast_axis_orientation_map_computed,
     cmap="gray",
     extent=[
         -x_extent_mm / 2,
@@ -196,7 +224,9 @@ im = ax3.imshow(
         y_extent_mm / 2,
     ],
 )
-ax3.set_title("Computed fast axis orientations map")
+ax3.set_title(
+    f"Computed fast axis orientations map\npixel pitch = {hwp_pixel_pitch*1e6:.1f} µm"
+)
 ax3.set_xlabel("x [mm]")
 ax3.set_ylabel("y [mm]")
 

@@ -49,9 +49,9 @@ altitude = [0, 1000, 5000, 10000, 12000]  # [m] altitude of layers
 # ------------------- TELESCOPE ------------------ #
 
 diameter = 2  # [m] telescope diameter
-n_subaperture = 16  # number of WFS subaperture along the telescope diameter
+n_subaperture = 41  # number of WFS subaperture along the telescope diameter
 n_pixel_per_subaperture = (
-    16  # [pixel] sampling of the WFS subapertures in telescope pupil space
+    8  # [pixel] sampling of the WFS subapertures in telescope pupil space
 )
 resolution = (
     n_subaperture * n_pixel_per_subaperture
@@ -61,20 +61,17 @@ pupil_oversampling_factor: int = (
 )
 # ------------------------ DM ---------------------- #
 
-n_actuator = 2 * n_subaperture  # number of actuators
+n_actuator = 24  # number of actuators
 
 # ----------------------- WFS ---------------------- #
 
-grey_width = 3.0  # [lambda/D] half grey width
+grey_width = 7.96 / 2  # [lambda/D] half grey width. Computed at 670 nm for F/# = 45
 n_pix_separation = 10  # [pixel] separation ratio between the pupils
 light_threshold = (
     0.3 if grey_width > 0.0 else 0
 )  # light threshold to select the valid pixels
 detector_photon_noise = True
 detector_read_out_noise = 0.0  # e- RMS
-
-# super resolution
-sr_amplitude = 0.25  # [pixel] super resolution shifts amplitude
 
 # -------------------- CALIBRATION - MODAL BASIS ---------------- #
 
@@ -85,9 +82,9 @@ single_pass = False  # push-pull or push only for the calibration
 
 # -------------------- LOOP ----------------------- #
 
-loop_gain = 0.7
+loop_gain = 0.4
 n_iter = 200
-delay = 1
+delay = 2
 
 # %% Build objects
 
@@ -141,7 +138,6 @@ dm = DeformableMirror(tel, nSubap=n_actuator)
 
 # %% ----------------------- Bi-O edge ---------------------------- #
 
-# pyramid
 bioedge = BioEdge(
     nSubap=n_subaperture,
     telescope=tel,
@@ -165,18 +161,16 @@ calibration_basis = tel.pupil.reshape(-1, 1) * calibration_basis  # apply pupil 
 
 # %% -------------------------   Modal  DM   ----------------------------------
 
-first_calibration_modal_dm = DeformableMirror(
-    tel, nSubap=n_actuator, modes=calibration_basis
-)
+calibration_modal_dm = DeformableMirror(tel, nSubap=n_actuator, modes=calibration_basis)
 
 # %% calibration
 
 calib = InteractionMatrix(
     ngs,
     tel,
-    first_calibration_modal_dm,
+    calibration_modal_dm,
     bioedge,
-    M2C=np.diag(np.ones(first_calibration_modal_dm.nValidAct)),
+    M2C=np.diag(np.ones(calibration_modal_dm.nValidAct)),
     stroke=stroke,
     single_pass=single_pass,
     noise="off",
@@ -192,7 +186,7 @@ print(
 
 # %% choose number of controlled modes
 
-n_modes = int(0.25 * bioedge.nSignal)  # number of controlled modes
+n_modes = dm.nValidAct - 100  # number of controlled modes
 
 # %% compute classic lse reconstructor
 
@@ -211,6 +205,7 @@ reconstructor_lse = np.concatenate(
 
 # L = np.linalg.cholesky(c_phi)
 L = np.diag(np.diag(c_phi) ** 0.5)
+
 
 A = interaction_matrix @ L
 
@@ -242,7 +237,7 @@ seed = 12  # seed for atmosphere computation
     tel,
     ngs,
     atm,
-    first_calibration_modal_dm,
+    calibration_modal_dm,
     bioedge,
     reconstructor_lse,
     loop_gain,
@@ -283,7 +278,7 @@ plt.savefig(fig_dir / "residuals.png", bbox_inches="tight")
 # strehls
 plt.figure()
 plt.plot(strehl_lse, label="strehl_lse")
-plt.ylabel("strehl phase RMS [nm]")
+plt.ylabel("strehl ratio")
 plt.title("Closed Loop strehls")
 plt.legend()
 plt.savefig(fig_dir / "strehls.png", bbox_inches="tight")

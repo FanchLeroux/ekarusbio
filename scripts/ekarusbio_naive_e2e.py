@@ -20,6 +20,7 @@ from OOPAO.calibration.InteractionMatrix import InteractionMatrix
 from ekarusbio.pattern import get_circular_pupil
 from ekarusbio.modal_bases.KL_basis import compute_KL_basis
 from ekarusbio.sensitivity import compute_photon_noise_sensitivity
+from ekarusbio.analytical_budget import compute_fitting, compute_temporal
 from ekarusbio.closed_loop import close_the_loop
 from ekarusbio.miscellaneous import pad_array, crop_array
 
@@ -33,7 +34,6 @@ fig_dir = config.root_dir / "outputs"
 # ---------------------- NGS ---------------------- #
 
 # phot.R4 = [0.670e-6, 0.300e-6, 7.66e12]
-wavelength = 670e-9  # [m] wavelength of the guide star
 optical_band = "R4"  # optical band of the guide star
 magnitude = 10  # magnitude of the guide star
 
@@ -77,34 +77,18 @@ detector_read_out_noise = 0.0  # e- RMS
 
 modal_basis = "KL"
 stroke_rad = 0.01  # [rad]
-stroke = stroke_rad * wavelength / (2 * np.pi)  # [nm]
 single_pass = False  # push-pull or push only for the calibration
 
 # -------------------- LOOP ----------------------- #
 
-loop_gain = 0.4
+loop_integrator_gain = 0.4
+loop_frequency = 1000  # [Hz]
+loop_delay = 2  # [frame]
 n_iter = 200
-delay = 2
 
 # %% Build objects
 
-# % -----------------------    TELESCOPE   -----------------------------
-
-# create the Telescope object
-tel = Telescope(
-    resolution=resolution,  # [pixel] resolution of
-    # the telescope
-    diameter=diameter,
-)  # [m] telescope diameter
-pupil_oversampled = get_circular_pupil(tel.resolution * pupil_oversampling_factor)
-pupil_binned = pupil_oversampled.reshape(
-    tel.resolution,
-    pupil_oversampling_factor,
-    tel.resolution,
-    pupil_oversampling_factor,
-).mean(axis=(1, 3))
-
-# %% -----------------------     NGS   ----------------------------------
+# % -----------------------     NGS   ----------------------------------
 
 # create the Natural Guide Star object
 ngs = Source(
@@ -112,6 +96,24 @@ ngs = Source(
     # (see photometry.py)
     magnitude=magnitude,
 )  # Source Magnitude
+wavelength = ngs.wavelength  # [m] wavelength of the guide star
+
+
+# % -----------------------    TELESCOPE   -----------------------------
+
+# create the Telescope object
+tel = Telescope(
+    resolution=resolution,  # [pixel] resolution of the telescope
+    diameter=diameter,  # [m] telescope diameter
+    samplingTime=1 / loop_frequency,  # [s] sampling time of the telescope
+)
+pupil_oversampled = get_circular_pupil(tel.resolution * pupil_oversampling_factor)
+pupil_binned = pupil_oversampled.reshape(
+    tel.resolution,
+    pupil_oversampling_factor,
+    tel.resolution,
+    pupil_oversampling_factor,
+).mean(axis=(1, 3))
 
 # % -----------------------    ATMOSPHERE   ----------------------------
 
@@ -136,7 +138,7 @@ atm = Atmosphere(
 
 dm = DeformableMirror(tel, nSubap=n_actuator)
 
-# %% ----------------------- Bi-O edge ---------------------------- #
+# % ----------------------- Bi-O edge ---------------------------- #
 
 bioedge = BioEdge(
     nSubap=n_subaperture,
@@ -161,17 +163,18 @@ calibration_basis = tel.pupil.reshape(-1, 1) * calibration_basis  # apply pupil 
 
 # %% -------------------------   Modal  DM   ----------------------------------
 
-calibration_modal_dm = DeformableMirror(tel, nSubap=n_actuator, modes=calibration_basis)
+modal_dm = DeformableMirror(tel, nSubap=n_actuator, modes=calibration_basis)
 
 # %% calibration
 
+stroke_nm = stroke_rad * wavelength / (2 * np.pi)  # [nm]
 calib = InteractionMatrix(
     ngs,
     tel,
-    calibration_modal_dm,
+    modal_dm,
     bioedge,
-    M2C=np.diag(np.ones(calibration_modal_dm.nValidAct)),
-    stroke=stroke,
+    M2C=np.diag(np.ones(modal_dm.nValidAct)),
+    stroke=stroke_nm,
     single_pass=single_pass,
     noise="off",
     display=True,
@@ -202,17 +205,22 @@ ax_sensitivity.legend(loc="lower right")
 
 # %% choose number of controlled modes
 
-n_modes = dm.nValidAct - 100  # number of controlled modes
+n_controlled_modes = dm.nValidAct - 100  # number of controlled modes
 
 # %% compute classic lse reconstructor
 
 reconstructor_lse = np.linalg.pinv(
-    interaction_matrix[:, :n_modes]
+    interaction_matrix[:, :n_controlled_modes]
 )  # unweighted LSE reconstructor
 reconstructor_lse = np.concatenate(
     (
         reconstructor_lse,
-        np.zeros((interaction_matrix.shape[1] - n_modes, reconstructor_lse.shape[1])),
+        np.zeros(
+            (
+                interaction_matrix.shape[1] - n_controlled_modes,
+                reconstructor_lse.shape[1],
+            )
+        ),
     ),
     axis=0,
 )  # pad the reconstructor with zeros to match the number of WFS signals
@@ -227,17 +235,38 @@ A = interaction_matrix @ L
 
 U, s, Vh = np.linalg.svd(A, full_matrices=False)
 
-U_k = U[:, :n_modes]
-s_k = s[:n_modes]
-Vh_k = Vh[:n_modes, :]
+U_k = U[:, :n_controlled_modes]
+s_k = s[:n_controlled_modes]
+Vh_k = Vh[:n_controlled_modes, :]
 
 reconstructor_lse = L @ Vh_k.T / s_k @ U_k.T
+
+# %% Analytical error budget
+
+n_act = np.ceil(2 * (modal_dm.modes.shape[1] / np.pi) ** 0.5)
+actuator_pitch = tel.diameter / n_act
+r0_at_wavelength = r0 * (wavelength / 500e-9) ** (
+    6 / 5
+)  # [m] Fried parameter at the wavelength of the guide star
+
+fitting_error = compute_fitting(r0, actuator_pitch)
+
+temporal_error = compute_temporal(
+    loop_frequency,
+    loop_delay,
+    loop_integrator_gain,
+    n_controlled_modes,
+    tel.diameter,
+    wind_speed,
+    r0,
+)
+
 
 # %% SEED
 
 seed = 12  # seed for atmosphere computation
 
-# %% Close the loop - LSE - SR
+# %% Close the loop - LSE
 
 (
     total_lse,
@@ -253,12 +282,12 @@ seed = 12  # seed for atmosphere computation
     tel,
     ngs,
     atm,
-    calibration_modal_dm,
+    modal_dm,
     bioedge,
     reconstructor_lse,
-    loop_gain,
+    loop_integrator_gain,
     n_iter,
-    delay=delay,
+    delay=loop_delay,
     photon_noise=detector_photon_noise,
     read_out_noise=detector_read_out_noise,
     polc=False,
@@ -305,7 +334,7 @@ plt.imshow(
     norm="linear",
     cmap="inferno",
 )
-plt.title(f"long_exposure_psf_lse\nBi-O edge - {n_modes} controlled modes")
+plt.title(f"long_exposure_psf_lse\nBi-O edge - {n_controlled_modes} controlled modes")
 
 plt.show()
 

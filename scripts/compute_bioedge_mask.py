@@ -9,11 +9,6 @@ from astropy.io import fits
 
 root_dir = pathlib.Path(__file__).parent
 
-from ekarusbio.config import Config
-
-config = Config()
-fig_dir = config.root_dir / "outputs"
-
 # %% functions definitions
 
 
@@ -124,17 +119,16 @@ fast_axis_orientations_filename = (
 )
 
 fits.writeto(
-    fig_dir / fast_axis_orientations_filename,
+    root_dir / fast_axis_orientations_filename,
     fast_axis_orientation_map_computed,
     overwrite=True,
 )
 
 # %% import Bi-O edge mask first prototype fast axis orientations map
 
-data_dir = config.root_dir / "data" / "bioedge_mask_prototype_1"
 filename = "FAST_AXIS_EXTENDED_F62_SEP1.5arcsec_LAM770nm_GFW_5LAMoD_res10mic.fits"
 
-fast_axis_orientations_map_prototype_1 = fits.getdata(data_dir / filename)
+fast_axis_orientations_map_prototype_1 = fits.getdata(root_dir / filename)
 
 # %% visualize the difference between the computed and the imported fast axis orientations maps
 
@@ -205,7 +199,7 @@ gw_horizontal_prototype_1 = fast_axis_orientations_map_prototype_1[
 x_extent_mm = mask_extent_x * 1e3
 y_extent_mm = mask_extent_y * 1e3
 
-fig = plt.figure(figsize=(config.width_double_column, 1.2 * config.width_double_column))
+fig = plt.figure(figsize=(7.09, 1.2 * 7.09))
 
 gs = fig.add_gridspec(
     2,
@@ -307,7 +301,7 @@ plt.ylabel("y [mm]")
 plt.colorbar(label="Fast axis orientation [deg]", shrink=0.55, pad=0.04)
 
 fits.writeto(
-    fig_dir / fast_axis_orientations_filename,
+    root_dir / fast_axis_orientations_filename,
     fast_axis_orientation_map_computed_2,
     overwrite=True,
 )

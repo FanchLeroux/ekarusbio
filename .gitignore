@@ -16,3 +16,8 @@ outputs/**
 # Exception for .gitkeep
 !*/
 !**/.gitkeep
+
+# Ignore following file formats
+*.fits
+*.hdf5
+*.h5

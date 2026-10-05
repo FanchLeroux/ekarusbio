@@ -16,6 +16,11 @@ dependencies = [
 [project.scripts]
 ekarusbio = "ekarusbio:main"
 
+[project.optional-dependencies]
+gpu = [
+    "cupy-cuda13x[ctk]>=14.2.0",
+]
+
 [build-system]
 requires = ["uv_build>=0.12.6,<0.13.0"]
 build-backend = "uv_build"

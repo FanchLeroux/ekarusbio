@@ -32,6 +32,32 @@ def compute_temporal(
     wind_speed,
     r0,
 ):
+    """
+    Compute the temporal error term of the error budget.
+
+    Parameters
+    ----------
+    loop_frequency : float
+        The frequency of the AO loop [Hz].
+    loop_delay : float
+        The delay of the AO loop [s].
+    integrator_gain : float
+        The gain of the integrator.
+    n_controlled_modes : int
+        The number of controlled modes.
+    telescope_diameter : float
+        The diameter of the telescope [m].
+    wind_speed : float
+        The speed of the wind [m/s].
+    r0 : float
+        The Fried parameter [m].
+
+    Returns
+    -------
+    var_temporal_error : float
+        The temporal error of the AO system.
+
+    """
 
     # temporal error
     bandwidth = (

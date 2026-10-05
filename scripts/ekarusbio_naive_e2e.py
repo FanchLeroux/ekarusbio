@@ -39,7 +39,7 @@ magnitude = 10  # magnitude of the guide star
 
 # ------------------ ATMOSPHERE ----------------- #
 
-r0 = 0.05  # [m] value of r0 at 500 nm
+r0 = 0.15  # [m] value of r0 at 500 nm
 external_scale = 30  # [m] value of L0 in the visibile
 fractional_r0 = [0.45, 0.1, 0.1, 0.25, 0.1]  # Cn2 profile (percentage)
 wind_speed = [5, 4, 8, 10, 2]  # [m.s-1] wind speed of layers
@@ -70,7 +70,7 @@ n_pix_separation = 10  # [pixel] separation ratio between the pupils
 light_threshold = (
     0.3 if grey_width > 0.0 else 0
 )  # light threshold to select the valid pixels
-detector_photon_noise = True
+detector_photon_noise = False
 detector_read_out_noise = 0.0  # e- RMS
 
 # -------------------- CALIBRATION - MODAL BASIS ---------------- #
@@ -244,22 +244,24 @@ reconstructor_lse = L @ Vh_k.T / s_k @ U_k.T
 # %% Analytical error budget
 
 n_act = np.ceil(2 * (modal_dm.modes.shape[1] / np.pi) ** 0.5)
-actuator_pitch = tel.diameter / n_act
+actuator_pitch = tel.D / n_act
 r0_at_wavelength = r0 * (wavelength / 500e-9) ** (
     6 / 5
 )  # [m] Fried parameter at the wavelength of the guide star
 
-fitting_error = compute_fitting(r0, actuator_pitch)
+fitting_error = compute_fitting(r0_at_wavelength, actuator_pitch)
 
 temporal_error = compute_temporal(
     loop_frequency,
-    loop_delay,
+    loop_delay / loop_frequency,
     loop_integrator_gain,
     n_controlled_modes,
-    tel.diameter,
-    wind_speed,
-    r0,
+    tel.D,
+    np.mean(wind_speed),
+    r0_at_wavelength,
 )
+
+strehl_analytical = np.exp(-(fitting_error + temporal_error))
 
 
 # %% SEED
@@ -322,6 +324,12 @@ plt.savefig(fig_dir / "residuals.png", bbox_inches="tight")
 # strehls
 plt.figure()
 plt.plot(strehl_lse, label="strehl_lse")
+plt.axhline(
+    y=strehl_analytical,
+    color="k",
+    linestyle="--",
+    label="analytical strehl ratio\n(fitting + temporal)",
+)
 plt.ylabel("strehl ratio")
 plt.title("Closed Loop strehls")
 plt.legend()

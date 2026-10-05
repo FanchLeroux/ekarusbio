@@ -20,7 +20,7 @@ hwp_pixel_pitch = 10e-6  # [m]
 grey_width = 240e-6  # [m]
 mask_extent_x = 1e-2  # [m]
 mask_extent_y = 0.5e-2  # [m]
-separation = 3.5e-3  # [m] distance between the centers of the two grey regions
+separation = 3.6e-3  # [m] distance between the centers of the two grey regions
 
 # %% compute transmission map for one output polarization direction (i.e. one pupil)
 
@@ -48,7 +48,7 @@ mask[
     center_vertical_filter[0]
     - grey_width_pixels // 2 : center_vertical_filter[0]
     + grey_width_pixels // 2,
-] = np.linspace(1, 0, grey_width_pixels)
+] = np.linspace(1, 0, grey_width_pixels + 1)[:-1]
 mask[
     :,
     center_vertical_filter[0] + grey_width_pixels // 2 : filters_frontier,
@@ -61,7 +61,7 @@ mask[
     - grey_width_pixels // 2 : center_horizontal_filter[1]
     + grey_width_pixels // 2,
     filters_frontier:,
-] = np.linspace(1, 0, grey_width_pixels).reshape(-1, 1)
+] = np.linspace(1, 0, grey_width_pixels + 1)[:-1].reshape(-1, 1)
 mask[center_horizontal_filter[1] + grey_width_pixels // 2 :, filters_frontier:] = 0
 
 # %% compute fast axis orientations map
@@ -154,27 +154,61 @@ gw_horizontal_prototype_1 = fast_axis_orientations_map_prototype_1[
     filters_frontier + fast_axis_orientations_map_prototype_1.shape[0] // 4,
 ]
 
-fig, axs = plt.subplots(1, 2, constrained_layout=True)
-axs[0].plot(gw_vertical, label="Computed")
-axs[0].plot(gw_vertical_prototype_1, label="Imported")
-axs[0].axhline(y=0, color="k", linestyle=":", label="0 deg")
-axs[0].axhline(y=45, color="k", linestyle="--", label="45 deg")
-axs[0].axhline(y=90, color="k", linestyle="-.", label="90 deg")
-axs[0].set_ylim(-5, 95)
-axs[0].set_xlabel("Pixel index")
-axs[0].set_ylabel("Fast axis orientation [deg]")
-axs[0].set_title("Vertical grey region")
-axs[0].legend(loc="lower right")
-axs[1].plot(gw_horizontal, label="Computed")
-axs[1].plot(gw_horizontal_prototype_1, label="Imported")
-axs[1].axhline(y=0, color="k", linestyle=":", label="0 deg")
-axs[1].axhline(y=45, color="k", linestyle="--", label="45 deg")
-axs[1].axhline(y=90, color="k", linestyle="-.", label="90 deg")
-axs[1].set_ylim(-5, 95)
-axs[1].set_xlabel("Pixel index")
-axs[1].set_ylabel("Fast axis orientation [deg]")
-axs[1].set_title("Horizontal grey region")
-axs[1].legend(loc="lower right")
+fig = plt.figure(figsize=(config.width_double_column, 1.2 * config.width_double_column))
+
+gs = fig.add_gridspec(
+    2,
+    2,
+    hspace=0.3,
+    wspace=0.2,
+)
+
+ax1 = fig.add_subplot(gs[0, 0])
+ax2 = fig.add_subplot(gs[0, 1])
+ax3 = fig.add_subplot(gs[1, :])
+ax1.plot(gw_vertical, label="computed")
+ax1.plot(gw_vertical_prototype_1, label="prototype 1", linestyle="-.")
+ax1.axhline(y=0, color="k", linestyle=":", label="0 deg")
+ax1.axhline(y=45, color="k", linestyle="--", label="45 deg")
+ax1.axhline(y=90, color="k", linestyle="-.", label="90 deg")
+ax1.set_ylim(-5, 95)
+ax1.set_xlabel("Pixel index")
+ax1.set_ylabel("Fast axis orientation [deg]")
+ax1.set_title("Vertical grey region")
+ax1.legend(loc="lower right", bbox_to_anchor=(1.0, 0.05), fontsize=10)
+ax2.plot(gw_horizontal, label="computed")
+ax2.plot(gw_horizontal_prototype_1, label="prototype 1", linestyle="-.")
+ax2.axhline(y=0, color="k", linestyle=":", label="0 deg")
+ax2.axhline(y=45, color="k", linestyle="--", label="45 deg")
+ax2.axhline(y=90, color="k", linestyle="-.", label="90 deg")
+ax2.set_ylim(-5, 95)
+ax2.set_xlabel("Pixel index")
+ax2.set_ylabel("Fast axis orientation [deg]")
+ax2.set_title("Horizontal grey region")
+ax2.legend(loc="lower right", bbox_to_anchor=(1.0, 0.51), fontsize=10)
+im = ax3.imshow(
+    fast_axis_orientations,
+    cmap="gray",
+    extent=[
+        -x_extent_mm / 2,
+        x_extent_mm / 2,
+        -y_extent_mm / 2,
+        y_extent_mm / 2,
+    ],
+)
+ax3.set_title("Computed fast axis orientations map")
+ax3.set_xlabel("x [mm]")
+ax3.set_ylabel("y [mm]")
+
+fig.colorbar(
+    im,
+    ax=ax3,
+    label="Fast axis orientation [deg]",
+    ticks=[0, 45, 90],
+    shrink=0.79,
+    pad=0.04,
+)
+
 
 # %%
 

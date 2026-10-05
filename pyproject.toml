@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "astropy>=8.0.1",
     "matplotlib>=3.11.2",
     "numpy>=2.5.3",
 ]
@@ -23,4 +24,5 @@ build-backend = "uv_build"
 dev = [
     "ipykernel>=7.3.0",
     "ipympl>=0.10.0",
+    "pyside6>=6.11.2",
 ]

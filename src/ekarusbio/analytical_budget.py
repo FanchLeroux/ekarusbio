@@ -76,3 +76,55 @@ def compute_temporal(
     )  # [rad^2 RMS]
 
     return var_temporal_error
+
+
+def compute_readout_noise(n_photons, reconstructor, readout_noise):
+    """
+    Compute the read-out noise term of the error budget.
+
+    Parameters
+    ----------
+    n_photons : float
+        The number of photons per frame.
+    readout_noise : float
+        The read-out noise of the wavefront sensor (std) [e-/frame/pixel].
+    reconstructor : np.ndarray
+        The reconstructor marrix [rad].
+
+    Returns
+    -------
+    var_readout_noise : float
+        The read-out noise error term of the AO system. [rad^2].
+
+    """
+
+    var_readout_noise = (readout_noise / n_photons) ** 2 * np.trace(
+        reconstructor @ reconstructor.T
+    )  # [rad^2]
+    return var_readout_noise
+
+
+def compute_photon_noise(n_photons, reconstructor, reference_intensities):
+    """
+    Compute the photon noise term of the error budget.
+
+    Parameters
+    ----------
+    n_photons : float
+        The number of photons per frame.
+    reconstructor : np.ndarray
+        The reconstructor marrix [rad].
+    reference_intensities : np.ndarray
+        The reference intensities I(phi=0)/N_ph.
+
+    Returns
+    -------
+    var_photon_noise : float
+        The photon noise error term of the AO system. [rad^2].
+
+    """
+
+    var_photon_noise = (1 / n_photons) * np.trace(
+        reconstructor @ np.diag(reference_intensities) @ reconstructor.T
+    )  # [rad^2]
+    return var_photon_noise

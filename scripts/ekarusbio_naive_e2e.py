@@ -20,7 +20,12 @@ from OOPAO.calibration.InteractionMatrix import InteractionMatrix
 from ekarusbio.pattern import get_circular_pupil
 from ekarusbio.modal_bases.KL_basis import compute_KL_basis
 from ekarusbio.sensitivity import compute_photon_noise_sensitivity
-from ekarusbio.analytical_budget import compute_fitting, compute_temporal
+from ekarusbio.analytical_budget import (
+    compute_fitting,
+    compute_temporal,
+    compute_readout_noise,
+    compute_photon_noise,
+)
 from ekarusbio.closed_loop import close_the_loop
 from ekarusbio.miscellaneous import pad_array, crop_array
 
@@ -35,12 +40,11 @@ fig_dir = config.root_dir / "outputs"
 
 # phot.R4 = [0.670e-6, 0.300e-6, 7.66e12]
 optical_band = "R4"  # optical band of the guide star
-magnitude = 10  # magnitude of the guide star
-n_photons_per_subap = 100
+n_photons_per_subap = 5
 
 # ------------------ ATMOSPHERE ----------------- #
 
-r0 = 0.05  # [m] value of r0 at 500 nm
+r0 = 0.1  # [m] value of r0 at 500 nm
 external_scale = 30  # [m] value of L0 in the visibile
 fractional_r0 = [0.45, 0.1, 0.1, 0.25, 0.1]  # Cn2 profile (percentage)
 wind_speed = [5, 4, 8, 10, 2]  # [m.s-1] wind speed of layers
@@ -57,7 +61,7 @@ n_pixel_per_subaperture = (
 resolution = (
     n_subaperture * n_pixel_per_subaperture
 )  # resolution of the telescope driven by the WFS
-central_obstruction_ratio = 0.3  # ratio of the central obscuration
+central_obstruction_ratio = 0.0  # ratio of the central obscuration
 # ------------------------ DM ---------------------- #
 
 n_actuator = 24  # number of actuators
@@ -69,7 +73,7 @@ n_pix_separation = 10  # [pixel] separation ratio between the pupils
 light_threshold = (
     0.3 if grey_width > 0.0 else 0
 )  # light threshold to select the valid pixels
-detector_photon_noise = False
+detector_photon_noise = True
 detector_read_out_noise = 0.0  # e- RMS
 
 # -------------------- CALIBRATION - MODAL BASIS ---------------- #
@@ -80,7 +84,7 @@ single_pass = False  # push-pull or push only for the calibration
 
 # -------------------- LOOP ----------------------- #
 
-loop_integrator_gain = 0.7
+loop_integrator_gain = 0.4
 loop_frequency = 1000  # [Hz]
 loop_delay = 2  # [frame]
 n_iter = 200
@@ -93,7 +97,7 @@ n_iter = 200
 ngs = Source(
     optBand=optical_band,  # Source optical band
     # (see photometry.py)
-    magnitude=magnitude,
+    magnitude=0,  # arbitrary. magnitude will be updated later based on n_photons_per_subap
 )  # Source Magnitude
 wavelength = ngs.wavelength  # [m] wavelength of the guide star
 
@@ -145,7 +149,7 @@ bioedge = BioEdge(
 # % --------------------- # photons ------------------------------ #
 
 telescope_surface = tel.pupil.sum() * tel.pixelSize * tel.pixelSize
-n_measurement_points = np.sum(bioedge.validSignal) / 4
+n_measurement_points = int(np.sum(bioedge.validSignal) / 4)
 
 ngs.nPhoton = (
     n_photons_per_subap * loop_frequency / (telescope_surface / n_measurement_points)
@@ -258,6 +262,10 @@ actuator_pitch = tel.D / n_act
 r0_at_wavelength = r0 * (wavelength / 500e-9) ** (
     6 / 5
 )  # [m] Fried parameter at the wavelength of the guide star
+reconstructor_lse_rad_normalized = reconstructor_lse * (2 * np.pi) / wavelength
+n_photons_per_frame = (
+    ngs.nPhoton * telescope_surface / loop_frequency
+)  # [photon/frame] number of photons per frame
 
 fitting_error = compute_fitting(r0_at_wavelength, actuator_pitch)
 
@@ -271,17 +279,33 @@ temporal_error = compute_temporal(
     r0_at_wavelength,
 )
 
-strehl_analytical = np.exp(-(fitting_error + temporal_error))
+readout_noise_error = compute_readout_noise(
+    n_photons_per_frame, reconstructor_lse_rad_normalized, detector_read_out_noise
+)
+
+photon_noise_error = compute_photon_noise(
+    n_photons_per_frame, reconstructor_lse_rad_normalized, reference_intensities
+)
+
+strehl_analytical = np.exp(
+    -(fitting_error + temporal_error + readout_noise_error + photon_noise_error)
+)
+residual_phase_std_analytical = (
+    fitting_error + temporal_error + readout_noise_error + photon_noise_error
+) ** 0.5  # [rad] residual phase std
 
 print(
     f"Fitting error: {fitting_error:.3e} rad^2 RMS\n"
     f"Temporal error: {temporal_error:.3e} rad^2 RMS\n"
+    f"Readout noise error: {readout_noise_error:.3e} rad^2 RMS\n"
+    f"Photon noise error: {photon_noise_error:.3e} rad^2 RMS\n"
+    f"Residual phase std: {residual_phase_std_analytical:.3e} rad RMS\n"
     f"Analytical Strehl ratio: {strehl_analytical:.3f}"
 )
 
 # %% SEED
 
-seed = 12  # seed for atmosphere computation
+seed = 0  # seed for atmosphere computation
 
 # %% Close the loop - LSE
 
@@ -328,10 +352,16 @@ plt.xlabel("# modes")
 
 # residuals
 plt.figure()
-plt.plot(total_lse, label="total_lse")
-plt.plot(residual_lse, label="residual_lse")
+plt.plot(total_lse * 1e-9 * 2 * np.pi / wavelength, label="total_lse")
+plt.plot(residual_lse * 1e-9 * 2 * np.pi / wavelength, label="residual_lse")
+plt.axhline(
+    y=residual_phase_std_analytical,
+    color="k",
+    linestyle="--",
+    label=f"analytical residual phase std\n{residual_phase_std_analytical:.3e} rad RMS",
+)
 plt.xlabel("loop iteration")
-plt.ylabel("residual phase RMS [nm]")
+plt.ylabel("residual phase RMS [rad]")
 plt.title("Closed Loop residuals")
 plt.legend()
 plt.savefig(fig_dir / "residuals.png", bbox_inches="tight")
@@ -343,9 +373,9 @@ plt.axhline(
     y=strehl_analytical,
     color="k",
     linestyle="--",
-    label="analytical strehl ratio\n(fitting + temporal)",
+    label="analytical strehl ratio\n(fitting + temporal + readout noise + photon noise)",
 )
-plt.ylabel("strehl ratio")
+plt.ylabel("Strehl ratio")
 plt.title("Closed Loop strehls")
 plt.legend()
 plt.savefig(fig_dir / "strehls.png", bbox_inches="tight")

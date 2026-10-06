@@ -56,7 +56,7 @@ altitude = [0, 1000, 5000, 10000, 12000]  # [m] altitude of layers
 diameter = 2  # [m] telescope diameter
 n_subaperture = 100  # number of WFS subaperture along the telescope diameter
 n_pixel_per_subaperture = (
-    2  # [pixel] sampling of the WFS subapertures in telescope pupil space
+    4  # [pixel] sampling of the WFS subapertures in telescope pupil space
 )
 resolution = (
     n_subaperture * n_pixel_per_subaperture

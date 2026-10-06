@@ -36,6 +36,7 @@ fig_dir = config.root_dir / "outputs"
 # phot.R4 = [0.670e-6, 0.300e-6, 7.66e12]
 optical_band = "R4"  # optical band of the guide star
 magnitude = 10  # magnitude of the guide star
+n_photons_per_subap = 100
 
 # ------------------ ATMOSPHERE ----------------- #
 
@@ -56,9 +57,7 @@ n_pixel_per_subaperture = (
 resolution = (
     n_subaperture * n_pixel_per_subaperture
 )  # resolution of the telescope driven by the WFS
-pupil_oversampling_factor: int = (
-    10  # oversampling the pupil then bin it to avoid edge effects
-)
+central_obstruction_ratio = 0.3  # ratio of the central obscuration
 # ------------------------ DM ---------------------- #
 
 n_actuator = 24  # number of actuators
@@ -98,7 +97,6 @@ ngs = Source(
 )  # Source Magnitude
 wavelength = ngs.wavelength  # [m] wavelength of the guide star
 
-
 # % -----------------------    TELESCOPE   -----------------------------
 
 # create the Telescope object
@@ -106,14 +104,8 @@ tel = Telescope(
     resolution=resolution,  # [pixel] resolution of the telescope
     diameter=diameter,  # [m] telescope diameter
     samplingTime=1 / loop_frequency,  # [s] sampling time of the telescope
+    centralObstruction=central_obstruction_ratio,  # ratio of the central obscuration
 )
-pupil_oversampled = get_circular_pupil(tel.resolution * pupil_oversampling_factor)
-pupil_binned = pupil_oversampled.reshape(
-    tel.resolution,
-    pupil_oversampling_factor,
-    tel.resolution,
-    pupil_oversampling_factor,
-).mean(axis=(1, 3))
 
 # % -----------------------    ATMOSPHERE   ----------------------------
 
@@ -148,6 +140,21 @@ bioedge = BioEdge(
     lightRatio=light_threshold,
     n_pix_separation=n_pix_separation,
     postProcessing="fullFrame",
+)
+
+# % --------------------- # photons ------------------------------ #
+
+telescope_surface = tel.pupil.sum() * tel.pixelSize * tel.pixelSize
+n_measurement_points = np.sum(bioedge.validSignal) / 4
+
+ngs.nPhoton = (
+    n_photons_per_subap * loop_frequency / (telescope_surface / n_measurement_points)
+)  # nPhoton = # photons per s per m2
+
+ngs**tel * dm * bioedge  # propagate the source through the system
+
+print(
+    f"# photons per measurement points: {bioedge.cam.frame.sum() / n_measurement_points}"
 )
 
 # %% ------------------------- MODAL BASIS -------------------------------

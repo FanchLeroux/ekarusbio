@@ -40,11 +40,11 @@ fig_dir = config.root_dir / "outputs"
 
 # phot.R4 = [0.670e-6, 0.300e-6, 7.66e12]
 optical_band = "R4"  # optical band of the guide star
-n_photons_per_subap = 2
+n_photons_per_measurment_point = 10
 
 # ------------------ ATMOSPHERE ----------------- #
 
-r0 = 0.05  # [m] value of r0 at 500 nm
+r0 = 0.1  # [m] value of r0 at 500 nm
 external_scale = 30  # [m] value of L0 in the visibile
 fractional_r0 = [0.45, 0.1, 0.1, 0.25, 0.1]  # Cn2 profile (percentage)
 wind_speed = [5, 4, 8, 10, 2]  # [m.s-1] wind speed of layers
@@ -68,15 +68,13 @@ n_actuator = 24  # number of actuators
 
 # ----------------------- WFS ---------------------- #
 
-grey_width = (
-    2  # 7.96 / 2  # [lambda/D] half grey width. Computed at 670 nm for F/# = 45
-)
+grey_width = 7.96 / 2  # [lambda/D] half grey width. Computed at 670 nm for F/# = 45
 n_pix_separation = 10  # [pixel] separation ratio between the pupils
 light_threshold = (
     0.3 if grey_width > 0.0 else 0
 )  # light threshold to select the valid pixels
-detector_photon_noise = True
-detector_read_out_noise = 0.0  # e- RMS
+detector_photon_noise = False
+detector_read_out_noise = 2 * n_photons_per_measurment_point / 4  # e- RMS
 
 # -------------------- CALIBRATION - MODAL BASIS ---------------- #
 
@@ -86,7 +84,7 @@ single_pass = False  # push-pull or push only for the calibration
 
 # -------------------- LOOP ----------------------- #
 
-loop_integrator_gain = 0.5
+loop_integrator_gain = 0.4
 loop_frequency = 1000  # [Hz]
 loop_delay = 2  # [frame]
 n_iter = 200
@@ -99,7 +97,7 @@ n_iter = 200
 ngs = Source(
     optBand=optical_band,  # Source optical band
     # (see photometry.py)
-    magnitude=0,  # arbitrary. magnitude will be updated later based on n_photons_per_subap
+    magnitude=0,  # arbitrary. magnitude will be updated later based on n_photons_per_measurment_point
 )  # Source Magnitude
 wavelength = ngs.wavelength  # [m] wavelength of the guide star
 
@@ -154,7 +152,9 @@ telescope_surface = tel.pupil.sum() * tel.pixelSize * tel.pixelSize
 n_measurement_points = int(np.sum(bioedge.validSignal) / 4)
 
 ngs.nPhoton = (
-    n_photons_per_subap * loop_frequency / (telescope_surface / n_measurement_points)
+    n_photons_per_measurment_point
+    * loop_frequency
+    / (telescope_surface / n_measurement_points)
 )  # nPhoton = # photons per s per m2
 
 ngs**tel * dm * bioedge  # propagate the source through the system
@@ -208,7 +208,7 @@ print(
     f"Interaction matrix rank: {np.linalg.matrix_rank(interaction_matrix)}"
 )
 
-# %% sensitivity analysis - allows low order mode cutoff identification
+# %% sensitivity analysis - sanity check and allows low order mode cutoff identification
 
 interaction_matrix_rad_normalized = calib.D * wavelength / (2 * np.pi)
 reference_intensities = bioedge.referenceSignal
@@ -293,8 +293,12 @@ readout_noise_error = compute_readout_noise(
     n_photons_per_frame, reconstructor_lse_rad_normalized, detector_read_out_noise
 )
 
-photon_noise_error = compute_photon_noise(
-    n_photons_per_frame, reconstructor_lse_rad_normalized, reference_intensities
+photon_noise_error = (
+    compute_photon_noise(
+        n_photons_per_frame, reconstructor_lse_rad_normalized, reference_intensities
+    )
+    if detector_photon_noise
+    else 0.0
 )
 
 strehl_analytical = np.exp(

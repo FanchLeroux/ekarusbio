@@ -61,7 +61,7 @@ n_pixel_per_subaperture = (
 resolution = (
     n_subaperture * n_pixel_per_subaperture
 )  # resolution of the telescope driven by the WFS
-central_obstruction_ratio = 0.0  # ratio of the central obscuration
+central_obstruction_ratio = 0.3  # ratio of the central obscuration
 # ------------------------ DM ---------------------- #
 
 n_actuator = 24  # number of actuators

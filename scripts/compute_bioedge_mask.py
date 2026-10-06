@@ -242,7 +242,7 @@ gs = fig.add_gridspec(
     2,
     2,
     hspace=0.1,
-    wspace=0.0,
+    wspace=0.2,
 )
 
 ax1 = fig.add_subplot(gs[0, 0])
@@ -412,7 +412,7 @@ gs = fig_2.add_gridspec(
     2,
     2,
     hspace=0.1,
-    wspace=0.0,
+    wspace=0.2,
 )
 
 ax1 = fig_2.add_subplot(gs[0, 0])
@@ -538,6 +538,139 @@ fig_2.colorbar(
     ticks=[0, 45, 90],
     shrink=0.79,
     pad=0.04,
+)
+
+# %% Last round of illustrations for mail to Rico
+
+x = np.linspace(-120, 120, 1000)  # [µm]
+y = 0.5 * np.rad2deg(np.arccos(np.sqrt(np.linspace(1, 0, 1000))))
+
+fig_3, axs_3 = plt.subplots(1, 2, figsize=(7, 0.7 * 7), constrained_layout=True)
+
+ax1, ax2 = axs_3
+
+ax1.plot(
+    np.arange(-len(gw_vertical_2) / 2, len(gw_vertical_2) / 2)
+    * hwp_pixel_pitch_2
+    * 1e6,
+    gw_vertical_2,
+    label="computed",
+)
+ax1.plot(
+    x,
+    y + 45,
+    color="red",
+    linestyle=":",
+    label=r"$0.5 \times \arccos(\sqrt{x}) + 45°, x \in [0, 1]$",
+)
+ax1.axhline(y=0, color="k", linestyle=":", label="0 deg")
+ax1.axhline(y=45, color="k", linestyle="--", label="45 deg")
+ax1.axhline(y=90, color="k", linestyle="-.", label="90 deg")
+ax1.axvline(
+    x=-120,
+    color="gray",
+    linestyle=":",
+)
+ax1.axvline(
+    x=120,
+    color="gray",
+    linestyle=":",
+)
+ax1.set_ylim(-5, 95)
+ax1.set_xlabel(r"[$\mu$m]")
+ax1.set_ylabel("Fast axis orientation [deg]")
+ax1.set_title("Vertical grey region")
+ax1.legend(loc="lower right", bbox_to_anchor=(1.0, 0.05), fontsize=10)
+
+ax2.plot(
+    np.arange(-len(gw_horizontal_2) / 2, len(gw_horizontal_2) / 2)
+    * hwp_pixel_pitch_2
+    * 1e6,
+    gw_horizontal_2,
+)
+ax2.plot(
+    x,
+    y,
+    color="red",
+    linestyle=":",
+    label=r"$0.5 \times \arccos(\sqrt{x}), x \in [0, 1]$",
+)
+ax2.axhline(y=0, color="k", linestyle=":")
+ax2.axhline(y=45, color="k", linestyle="--")
+ax2.axhline(y=90, color="k", linestyle="-.")
+ax2.axvline(
+    x=-120,
+    color="gray",
+    linestyle=":",
+    label=f"240 µm grey width ({grey_width_pixels_2} pixels)",
+)
+ax2.axvline(
+    x=120,
+    color="gray",
+    linestyle=":",
+)
+ax2.set_ylim(-5, 95)
+ax2.set_xlabel(r"[$\mu$m]")
+ax2.set_ylabel("Fast axis orientation [deg]")
+ax2.set_title("Horizontal grey region")
+ax2.legend(loc="lower right", bbox_to_anchor=(1.0, 0.7), fontsize=10)
+
+# %%
+
+fig_4, ax = plt.subplots(
+    figsize=(7, 0.7 * 7),
+    constrained_layout=True,
+)
+
+im = ax.imshow(
+    fast_axis_orientation_map_computed_2,
+    cmap="gray",
+    extent=[
+        -x_extent_mm / 2,
+        x_extent_mm / 2,
+        -y_extent_mm / 2,
+        y_extent_mm / 2,
+    ],
+)
+
+ax.set_title(
+    f"Bi-O edge mask for on-sky tests\n"
+    f"pixel pitch = {hwp_pixel_pitch_2 * 1e6:.1f} µm\n"
+    f"extent = {mask_extent_x * 1e3:.0f} x {mask_extent_y * 1e3:.0f} mm | {fast_axis_orientation_map_computed_2.shape[1]} x {fast_axis_orientation_map_computed_2.shape[0]} pixels\n"
+)
+
+ax.set_xlabel("x [mm]")
+ax.set_ylabel("y [mm]")
+
+
+# Pixel-index axes
+ax_top = ax.secondary_xaxis(
+    "top",
+    functions=(x_mm_to_px_2, x_px_to_mm_2),
+)
+
+ax_right = ax.secondary_yaxis(
+    "right",
+    functions=(y_mm_to_px_2, y_px_to_mm_2),
+)
+
+ax_top.set_xlabel("x [pixel]")
+ax_right.set_ylabel("y [pixel]")
+
+# Make the pixel axes show integer pixel indices
+ax_top.set_xticks(np.linspace(0, nx_2 - 1, 5, dtype=int))
+ax_right.set_yticks(np.linspace(0, ny_2 - 1, 5, dtype=int))
+
+# Colorbar
+fig_4.colorbar(
+    im,
+    ax=ax,
+    label="Fast axis orientation [deg]",
+    ticks=[0, 45, 90],
+    shrink=1.0,
+    pad=0.04,
+    fraction=0.07,
+    orientation="horizontal",
 )
 
 

@@ -40,11 +40,11 @@ fig_dir = config.root_dir / "outputs"
 
 # phot.R4 = [0.670e-6, 0.300e-6, 7.66e12]
 optical_band = "R4"  # optical band of the guide star
-n_photons_per_subap = 5
+n_photons_per_subap = 2
 
 # ------------------ ATMOSPHERE ----------------- #
 
-r0 = 0.1  # [m] value of r0 at 500 nm
+r0 = 0.05  # [m] value of r0 at 500 nm
 external_scale = 30  # [m] value of L0 in the visibile
 fractional_r0 = [0.45, 0.1, 0.1, 0.25, 0.1]  # Cn2 profile (percentage)
 wind_speed = [5, 4, 8, 10, 2]  # [m.s-1] wind speed of layers
@@ -84,7 +84,7 @@ single_pass = False  # push-pull or push only for the calibration
 
 # -------------------- LOOP ----------------------- #
 
-loop_integrator_gain = 0.4
+loop_integrator_gain = 0.5
 loop_frequency = 1000  # [Hz]
 loop_delay = 2  # [frame]
 n_iter = 200

@@ -615,6 +615,13 @@ ax2.set_ylabel("Fast axis orientation [deg]")
 ax2.set_title("Horizontal grey region")
 ax2.legend(loc="lower right", bbox_to_anchor=(1.0, 0.7), fontsize=10)
 
+fig_3.savefig(
+    root_dir / "profile_fig.svg",
+    dpi=300,
+    bbox_inches="tight",
+    pad_inches=0.1,
+)
+
 # %%
 
 fig_4, ax = plt.subplots(
@@ -673,6 +680,12 @@ fig_4.colorbar(
     orientation="horizontal",
 )
 
+fig_4.savefig(
+    root_dir / "mask_fig.svg",
+    dpi=300,
+    bbox_inches="tight",
+    pad_inches=0.1,
+)
 
 # %%
 

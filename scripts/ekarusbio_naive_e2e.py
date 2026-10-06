@@ -40,7 +40,7 @@ n_photons_per_subap = 100
 
 # ------------------ ATMOSPHERE ----------------- #
 
-r0 = 0.15  # [m] value of r0 at 500 nm
+r0 = 0.05  # [m] value of r0 at 500 nm
 external_scale = 30  # [m] value of L0 in the visibile
 fractional_r0 = [0.45, 0.1, 0.1, 0.25, 0.1]  # Cn2 profile (percentage)
 wind_speed = [5, 4, 8, 10, 2]  # [m.s-1] wind speed of layers
@@ -80,7 +80,7 @@ single_pass = False  # push-pull or push only for the calibration
 
 # -------------------- LOOP ----------------------- #
 
-loop_integrator_gain = 0.4
+loop_integrator_gain = 0.7
 loop_frequency = 1000  # [Hz]
 loop_delay = 2  # [frame]
 n_iter = 200
@@ -128,7 +128,7 @@ atm = Atmosphere(
 
 # % -------------------------     DM   ----------------------------------
 
-dm = DeformableMirror(tel, nSubap=n_actuator)
+dm = DeformableMirror(tel, nSubap=n_actuator - 1)
 
 # % ----------------------- Bi-O edge ---------------------------- #
 
@@ -170,7 +170,7 @@ calibration_basis = tel.pupil.reshape(-1, 1) * calibration_basis  # apply pupil 
 
 # %% -------------------------   Modal  DM   ----------------------------------
 
-modal_dm = DeformableMirror(tel, nSubap=n_actuator, modes=calibration_basis)
+modal_dm = DeformableMirror(tel, nSubap=n_actuator - 1, modes=calibration_basis)
 
 # %% calibration
 
@@ -208,11 +208,14 @@ ax_sensitivity.plot(photon_noise_sensitivity)
 ax_sensitivity.axhline(y=2**0.5, color="k", linestyle="--", label=r"$\sqrt{2}$")
 ax_sensitivity.set_xlabel("# KL mode")
 ax_sensitivity.set_ylabel(r"$S_{ph}$")
+
 ax_sensitivity.legend(loc="lower right")
 
 # %% choose number of controlled modes
 
-n_controlled_modes = dm.nValidAct - 100  # number of controlled modes
+n_controlled_modes = int(
+    modal_dm.modes.shape[1] * (1 - central_obstruction_ratio**2)
+)  # number of controlled modes. We assume more measurement points than dm actuators accross the pupil. The number of controlled modes is then equal to the number of actuators accross the pupil times the number of actuators accross the pupil times the ratio of the unobstructed area over the total area.
 
 # %% compute classic lse reconstructor
 
@@ -270,6 +273,11 @@ temporal_error = compute_temporal(
 
 strehl_analytical = np.exp(-(fitting_error + temporal_error))
 
+print(
+    f"Fitting error: {fitting_error:.3e} rad^2 RMS\n"
+    f"Temporal error: {temporal_error:.3e} rad^2 RMS\n"
+    f"Analytical Strehl ratio: {strehl_analytical:.3f}"
+)
 
 # %% SEED
 

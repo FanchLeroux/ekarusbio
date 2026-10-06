@@ -54,9 +54,9 @@ altitude = [0, 1000, 5000, 10000, 12000]  # [m] altitude of layers
 # ------------------- TELESCOPE ------------------ #
 
 diameter = 2  # [m] telescope diameter
-n_subaperture = 41  # number of WFS subaperture along the telescope diameter
+n_subaperture = 100  # number of WFS subaperture along the telescope diameter
 n_pixel_per_subaperture = (
-    8  # [pixel] sampling of the WFS subapertures in telescope pupil space
+    2  # [pixel] sampling of the WFS subapertures in telescope pupil space
 )
 resolution = (
     n_subaperture * n_pixel_per_subaperture
@@ -68,7 +68,9 @@ n_actuator = 24  # number of actuators
 
 # ----------------------- WFS ---------------------- #
 
-grey_width = 7.96 / 2  # [lambda/D] half grey width. Computed at 670 nm for F/# = 45
+grey_width = (
+    2  # 7.96 / 2  # [lambda/D] half grey width. Computed at 670 nm for F/# = 45
+)
 n_pix_separation = 10  # [pixel] separation ratio between the pupils
 light_threshold = (
     0.3 if grey_width > 0.0 else 0
@@ -175,6 +177,14 @@ calibration_basis = tel.pupil.reshape(-1, 1) * calibration_basis  # apply pupil 
 # %% -------------------------   Modal  DM   ----------------------------------
 
 modal_dm = DeformableMirror(tel, nSubap=n_actuator - 1, modes=calibration_basis)
+
+plt.figure()
+plt.plot(modal_dm.modes[tel.pupil.reshape(-1)].std(axis=0))
+plt.title("modal basis std")
+plt.xlabel("# KL mode")
+plt.ylabel("Standard deviation")
+plt.ylim(0.999, 1.001)
+plt.show()
 
 # %% calibration
 

@@ -76,11 +76,11 @@ fig_dir = config.root_dir / "outputs"
 
 # phot.R4 = [0.670e-6, 0.300e-6, 7.66e12]
 optical_band = "R4"  # optical band of the guide star
-n_photons_per_measurment_point = 10
+n_photons_per_measurment_point = 1000
 
 # ------------------ ATMOSPHERE ----------------- #
 
-r0 = 0.1  # [m] value of r0 at 500 nm
+r0 = 0.03  # [m] value of r0 at 500 nm
 external_scale = 30  # [m] value of L0 in the visibile
 fractional_r0 = [0.45, 0.1, 0.1, 0.25, 0.1]  # Cn2 profile (percentage)
 wind_speed = [5, 4, 8, 10, 2]  # [m.s-1] wind speed of layers
@@ -107,13 +107,13 @@ n_actuator = 24  # number of actuators
 grey_width = (
     7.96 / 2
 )  # [lambda/D] Bi-O edge half grey width. Computed at 670 nm for F/# = 45
-modulation = 0.0  # [lambda/D] modulation radius
+modulation = grey_width  # [lambda/D] modulation radius
 n_pix_separation = 10  # [pixel] separation ratio between the pupils
 light_threshold = (
     0.3 if grey_width > 0.0 else 0
 )  # light threshold to select the valid pixels
-detector_photon_noise = False
-detector_read_out_noise = 2 * n_photons_per_measurment_point / 4  # e- RMS
+detector_photon_noise = True
+detector_read_out_noise = 0.0  # e- RMS
 
 # -------------------- CALIBRATION - MODAL BASIS ---------------- #
 
@@ -123,9 +123,9 @@ single_pass = False  # push-pull or push only for the calibration
 
 # -------------------- LOOP ----------------------- #
 
-loop_integrator_gain = 0.4
+loop_integrator_gain = 0.8
 loop_frequency = 1000  # [Hz]
-loop_delay = 2  # [frame]
+loop_delay = 1  # [frame]
 n_iter = 200
 
 # %% Build objects
@@ -203,7 +203,7 @@ ngs.nPhoton = (
     / (telescope_surface / n_measurement_points)
 )  # nPhoton = # photons per s per m2
 
-ngs**tel * dm * bioedge  # propagate the source through the system
+ngs**tel * dm * bioedge  # coupling telescope, DM and WFS is mandatory to compute the number of photons per measurement point
 
 print(
     f"# photons per measurement points: {bioedge.cam.frame.sum() / n_measurement_points}"
@@ -235,6 +235,7 @@ plt.show()
 # %% calibration
 
 stroke_nm = stroke_rad * wavelength / (2 * np.pi)  # [nm]
+
 calib_bioedge = InteractionMatrix(
     ngs,
     tel,
@@ -246,12 +247,26 @@ calib_bioedge = InteractionMatrix(
     noise="off",
     display=True,
 )
-
 interaction_matrix_bioedge = calib_bioedge.D
 
+calib_pyramid = InteractionMatrix(
+    ngs,
+    tel,
+    modal_dm,
+    pyramid,
+    M2C=np.diag(np.ones(modal_dm.nValidAct)),
+    stroke=stroke_nm,
+    single_pass=single_pass,
+    noise="off",
+    display=True,
+)
+interaction_matrix_pyramid = calib_pyramid.D
+
 print(
-    f"Interaction matrix shape: {interaction_matrix_bioedge.shape}\n"
-    f"Interaction matrix rank: {np.linalg.matrix_rank(interaction_matrix_bioedge)}"
+    f"Interaction matrix bioedge shape: {interaction_matrix_bioedge.shape}\n"
+    f"Interaction matrix bioedge rank: {np.linalg.matrix_rank(interaction_matrix_bioedge)}\n"
+    f"Interaction matrix pyramid shape: {interaction_matrix_pyramid.shape}\n"
+    f"Interaction matrix pyramid rank: {np.linalg.matrix_rank(interaction_matrix_pyramid)}"
 )
 
 # %% sensitivity analysis - sanity check and allows low order mode cutoff identification
@@ -264,9 +279,18 @@ reference_intensities_bioedge = bioedge.referenceSignal
 photon_noise_sensitivity_bioedge = compute_photon_noise_sensitivity(
     interaction_matrix_bioedge_rad_normalized_bioedge, reference_intensities_bioedge
 )
+interaction_matrix_pyramid_rad_normalized_pyramid = (
+    calib_pyramid.D * wavelength / (2 * np.pi)
+)
+reference_intensities_pyramid = pyramid.referenceSignal
+
+photon_noise_sensitivity_pyramid = compute_photon_noise_sensitivity(
+    interaction_matrix_pyramid_rad_normalized_pyramid, reference_intensities_pyramid
+)
 
 fig_sensitivity_bioedge, ax_sensitivity_bioedge = plt.subplots()
-ax_sensitivity_bioedge.plot(photon_noise_sensitivity_bioedge)
+ax_sensitivity_bioedge.plot(photon_noise_sensitivity_bioedge, label="bioedge")
+ax_sensitivity_bioedge.plot(photon_noise_sensitivity_pyramid, label="pyramid")
 ax_sensitivity_bioedge.axhline(y=2**0.5, color="k", linestyle="--", label=r"$\sqrt{2}$")
 ax_sensitivity_bioedge.set_xlabel("# KL mode")
 ax_sensitivity_bioedge.set_ylabel(r"$S_{ph}$")
@@ -279,39 +303,26 @@ n_controlled_modes = int(
     modal_dm.modes.shape[1] * (1 - central_obstruction_ratio**2)
 )  # number of controlled modes. We assume more measurement points than dm actuators accross the pupil. The number of controlled modes is then equal to the number of actuators accross the pupil times the number of actuators accross the pupil times the ratio of the unobstructed area over the total area.
 
-# %% compute classic lse reconstructor
-
-reconstructor_lse_bioedge = np.linalg.pinv(
-    interaction_matrix_bioedge[:, :n_controlled_modes]
-)  # unweighted LSE reconstructor
-reconstructor_lse_bioedge = np.concatenate(
-    (
-        reconstructor_lse_bioedge,
-        np.zeros(
-            (
-                interaction_matrix_bioedge.shape[1] - n_controlled_modes,
-                reconstructor_lse_bioedge.shape[1],
-            )
-        ),
-    ),
-    axis=0,
-)  # pad the reconstructor with zeros to match the number of WFS signals
-
 # %% compute reconstructor with truncated SVD weightened by the phase covariance matrix
 
-# L = np.linalg.cholesky(c_phi)
-L = np.diag(np.diag(c_phi) ** 0.5)
+reconstructor_lse_bioedge = compute_weighted_svd_reconstructor(
+    interaction_matrix_bioedge, c_phi, n_controlled_modes
+)
+reconstructor_lse_pyramid = compute_weighted_svd_reconstructor(
+    interaction_matrix_pyramid, c_phi, n_controlled_modes
+)
 
+# %% compute classic LSE reconstructor
 
-A = interaction_matrix_bioedge @ L
+reconstructor_lse_bioedge = np.pad(
+    np.linalg.pinv(interaction_matrix_bioedge[:, :n_controlled_modes]),
+    ((0, interaction_matrix_bioedge.shape[1] - n_controlled_modes), (0, 0)),
+)
 
-U, s, Vh = np.linalg.svd(A, full_matrices=False)
-
-U_k = U[:, :n_controlled_modes]
-s_k = s[:n_controlled_modes]
-Vh_k = Vh[:n_controlled_modes, :]
-
-reconstructor_lse_bioedge = L @ Vh_k.T / s_k @ U_k.T
+reconstructor_lse_pyramid = np.pad(
+    np.linalg.pinv(interaction_matrix_pyramid[:, :n_controlled_modes]),
+    ((0, interaction_matrix_pyramid.shape[1] - n_controlled_modes), (0, 0)),
+)
 
 # %% Analytical error budget
 
@@ -322,6 +333,9 @@ r0_at_wavelength = r0 * (wavelength / 500e-9) ** (
 )  # [m] Fried parameter at the wavelength of the guide star
 reconstructor_lse_bioedge_rad_normalized = (
     reconstructor_lse_bioedge * (2 * np.pi) / wavelength
+)
+reconstructor_lse_pyramid_rad_normalized = (
+    reconstructor_lse_pyramid * (2 * np.pi) / wavelength
 )
 n_photons_per_frame = (
     ngs.nPhoton * telescope_surface / loop_frequency
@@ -355,6 +369,22 @@ photon_noise_error_bioedge = (
     else 0.0
 )
 
+readout_noise_error_pyramid = compute_readout_noise(
+    n_photons_per_frame,
+    reconstructor_lse_pyramid_rad_normalized,
+    detector_read_out_noise,
+)
+
+photon_noise_error_pyramid = (
+    compute_photon_noise(
+        n_photons_per_frame,
+        reconstructor_lse_pyramid_rad_normalized,
+        reference_intensities_pyramid,
+    )
+    if detector_photon_noise
+    else 0.0
+)
+
 strehl_analytical_bioedge = np.exp(
     -(
         fitting_error
@@ -370,20 +400,38 @@ residual_phase_std_analytical_bioedge = (
     + photon_noise_error_bioedge
 ) ** 0.5  # [rad] residual phase std
 
+strehl_analytical_pyramid = np.exp(
+    -(
+        fitting_error
+        + temporal_error
+        + readout_noise_error_pyramid
+        + photon_noise_error_pyramid
+    )
+)
+
+residual_phase_std_analytical_pyramid = (
+    fitting_error
+    + temporal_error
+    + readout_noise_error_pyramid
+    + photon_noise_error_pyramid
+) ** 0.5  # [rad] residual phase std
+
 print(
     f"Fitting error: {fitting_error:.3e} rad^2 RMS\n"
     f"Temporal error: {temporal_error:.3e} rad^2 RMS\n"
-    f"Readout noise error: {readout_noise_error_bioedge:.3e} rad^2 RMS\n"
-    f"Photon noise error: {photon_noise_error_bioedge:.3e} rad^2 RMS\n"
-    f"Residual phase std: {residual_phase_std_analytical_bioedge:.3e} rad RMS\n"
-    f"Analytical Strehl ratio: {strehl_analytical_bioedge:.3f}"
+    f"Readout noise error bioedge: {readout_noise_error_bioedge:.3e} rad^2 RMS\n"
+    f"Photon noise error bioedge: {photon_noise_error_bioedge:.3e} rad^2 RMS\n"
+    f"Readout noise error pyramid: {readout_noise_error_pyramid:.3e} rad^2 RMS\n"
+    f"Photon noise error pyramid: {photon_noise_error_pyramid:.3e} rad^2 RMS\n"
+    f"Residual phase std bioedge: {residual_phase_std_analytical_bioedge:.3e} rad RMS\n"
+    f"Residual phase std pyramid: {residual_phase_std_analytical_pyramid:.3e} rad RMS\n"
+    f"Analytical Strehl ratio bioedge: {strehl_analytical_bioedge:.3f}\n"
+    f"Analytical Strehl ratio pyramid: {strehl_analytical_pyramid:.3f}"
 )
 
-# %% SEED
+# %% Close the loop - LSE
 
 seed = 1  # seed for atmosphere computation
-
-# %% Close the loop - LSE
 
 (
     total_lse_bioedge,
@@ -408,32 +456,73 @@ seed = 1  # seed for atmosphere computation
     photon_noise=detector_photon_noise,
     read_out_noise=detector_read_out_noise,
     polc=False,
-    interaction_matrix_bioedge=interaction_matrix_bioedge,
+    seed=seed,
+    save_telemetry=True,
+    save_psf=True,
+)
+
+(
+    total_lse_pyramid,
+    residual_lse_pyramid,
+    strehl_lse_pyramid,
+    dm_coefs_lse_pyramid,
+    turbulence_phase_screens_lse_pyramid,
+    residual_phase_screens_lse_pyramid,
+    wfs_frames_lse_pyramid,
+    wfs_signals_lse_pyramid,
+    short_exposure_psf_lse_pyramid,
+) = close_the_loop(
+    tel,
+    ngs,
+    atm,
+    modal_dm,
+    pyramid,
+    reconstructor_lse_pyramid,
+    loop_integrator_gain,
+    n_iter,
+    delay=loop_delay,
+    photon_noise=detector_photon_noise,
+    read_out_noise=detector_read_out_noise,
+    polc=False,
     seed=seed,
     save_telemetry=True,
     save_psf=True,
 )
 
 # post processing
-long_exposure_psf_lse = np.sum(short_exposure_psf_lse_bioedge[:, :, 100:], axis=2)
+long_exposure_psf_lse_bioedge = np.sum(
+    short_exposure_psf_lse_bioedge[:, :, 100:], axis=2
+)
+long_exposure_psf_lse_pyramid = np.sum(
+    short_exposure_psf_lse_pyramid[:, :, 100:], axis=2
+)
 
 # plots
 
 # noise propagation
 plt.figure()
 plt.plot(
-    np.diag(reconstructor_lse_bioedge @ reconstructor_lse_bioedge.T) / bioedge.nSignal
+    np.diag(reconstructor_lse_bioedge @ reconstructor_lse_bioedge.T),
+    label="bioedge",
+)
+plt.plot(
+    np.diag(reconstructor_lse_pyramid @ reconstructor_lse_pyramid.T),
+    label="pyramid",
 )
 plt.yscale("log")
 plt.title("modal uniform noise propagation")
 plt.xlabel("# modes")
+plt.legend()
 
 # residuals
 plt.figure()
-plt.plot(total_lse_bioedge * 1e-9 * 2 * np.pi / wavelength, label="total_lse")
 plt.plot(
     residual_lse_bioedge * 1e-9 * 2 * np.pi / wavelength, label="residual_lse_bioedge"
 )
+plt.plot(
+    residual_lse_pyramid * 1e-9 * 2 * np.pi / wavelength, label="residual_lse_pyramid"
+)
+plt.plot(total_lse_bioedge * 1e-9 * 2 * np.pi / wavelength, label="total_lse")
 plt.axhline(
     y=residual_phase_std_analytical_bioedge,
     color="k",
@@ -449,6 +538,7 @@ plt.savefig(fig_dir / "residuals.png", bbox_inches="tight")
 # strehls
 plt.figure()
 plt.plot(strehl_lse_bioedge, label="strehl_lse_bioedge")
+plt.plot(strehl_lse_pyramid, label="strehl_lse_pyramid")
 plt.axhline(
     y=strehl_analytical_bioedge,
     color="k",
@@ -463,11 +553,23 @@ plt.savefig(fig_dir / "strehls.png", bbox_inches="tight")
 # long exposure PSF
 plt.figure()
 plt.imshow(
-    crop_array(np.log(long_exposure_psf_lse), 100),
+    crop_array(np.log(long_exposure_psf_lse_bioedge), 100),
     norm="linear",
     cmap="inferno",
 )
-plt.title(f"long_exposure_psf_lse\nBi-O edge - {n_controlled_modes} controlled modes")
+plt.title(
+    f"long_exposure_psf_lse_bioedge \nBi-O edge - {n_controlled_modes} controlled modes"
+)
+
+plt.figure()
+plt.imshow(
+    crop_array(np.log(long_exposure_psf_lse_pyramid), 100),
+    norm="linear",
+    cmap="inferno",
+)
+plt.title(
+    f"long_exposure_psf_lse_pyramid \nPyramid - {n_controlled_modes} controlled modes"
+)
 
 plt.show()
 

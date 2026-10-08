@@ -127,4 +127,7 @@ def compute_photon_noise(n_photons, reconstructor, reference_intensities):
     var_photon_noise = (1 / n_photons) * np.trace(
         reconstructor @ np.diag(reference_intensities) @ reconstructor.T
     )  # [rad^2]
+
+    var_photon_noise = 0.25 * var_photon_noise  # take into account noise rejection ?
+
     return var_photon_noise

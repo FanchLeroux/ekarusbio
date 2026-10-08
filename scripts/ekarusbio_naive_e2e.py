@@ -72,15 +72,9 @@ fig_dir = config.root_dir / "outputs"
 
 # %% simulation parameters
 
-# ---------------------- NGS ---------------------- #
-
-# phot.R4 = [0.670e-6, 0.300e-6, 7.66e12]
-optical_band = "R4"  # optical band of the guide star
-n_photons_per_measurment_point = 1000
-
 # ------------------ ATMOSPHERE ----------------- #
 
-r0 = 0.03  # [m] value of r0 at 500 nm
+r0 = 0.1  # [m] value of r0 at 500 nm
 external_scale = 30  # [m] value of L0 in the visibile
 fractional_r0 = [0.45, 0.1, 0.1, 0.25, 0.1]  # Cn2 profile (percentage)
 wind_speed = [5, 4, 8, 10, 2]  # [m.s-1] wind speed of layers
@@ -123,10 +117,20 @@ single_pass = False  # push-pull or push only for the calibration
 
 # -------------------- LOOP ----------------------- #
 
-loop_integrator_gain = 0.8
+loop_integrator_gain = 0.7
 loop_frequency = 1000  # [Hz]
 loop_delay = 1  # [frame]
+n_controlled_modes = int(
+    np.pi * (n_actuator / 2) ** 2 * (1 - central_obstruction_ratio**2)
+)
 n_iter = 200
+
+# ---------------------- NGS ---------------------- #
+
+# phot.R4 = [0.670e-6, 0.300e-6, 7.66e12]
+optical_band = "R4"  # optical band of the guide star
+n_photons_per_controlled_mode = 2
+
 
 # %% Build objects
 
@@ -136,7 +140,7 @@ n_iter = 200
 ngs = Source(
     optBand=optical_band,  # Source optical band
     # (see photometry.py)
-    magnitude=0,  # arbitrary. magnitude will be updated later based on n_photons_per_measurment_point
+    magnitude=0,  # arbitrary. magnitude will be updated later based on n_photons_per_controlled_mode
 )  # Source Magnitude
 wavelength = ngs.wavelength  # [m] wavelength of the guide star
 
@@ -198,7 +202,7 @@ telescope_surface = tel.pupil.sum() * tel.pixelSize * tel.pixelSize
 n_measurement_points = int(np.sum(bioedge.validSignal) / 4)
 
 ngs.nPhoton = (
-    n_photons_per_measurment_point
+    n_photons_per_controlled_mode
     * loop_frequency
     / (telescope_surface / n_measurement_points)
 )  # nPhoton = # photons per s per m2
@@ -296,12 +300,6 @@ ax_sensitivity_bioedge.set_xlabel("# KL mode")
 ax_sensitivity_bioedge.set_ylabel(r"$S_{ph}$")
 
 ax_sensitivity_bioedge.legend(loc="lower right")
-
-# %% choose number of controlled modes
-
-n_controlled_modes = int(
-    modal_dm.modes.shape[1] * (1 - central_obstruction_ratio**2)
-)  # number of controlled modes. We assume more measurement points than dm actuators accross the pupil. The number of controlled modes is then equal to the number of actuators accross the pupil times the number of actuators accross the pupil times the ratio of the unobstructed area over the total area.
 
 # %% compute reconstructor with truncated SVD weightened by the phase covariance matrix
 
@@ -497,7 +495,7 @@ long_exposure_psf_lse_pyramid = np.sum(
     short_exposure_psf_lse_pyramid[:, :, 100:], axis=2
 )
 
-# plots
+# %% plots
 
 # noise propagation
 plt.figure()
@@ -527,7 +525,7 @@ plt.axhline(
     y=residual_phase_std_analytical_bioedge,
     color="k",
     linestyle="--",
-    label=f"analytical residual phase std\n{residual_phase_std_analytical_bioedge:.3e} rad RMS",
+    label=f"analytical residual phase std bioedge\n{residual_phase_std_analytical_bioedge:.3e} rad RMS",
 )
 plt.xlabel("loop iteration")
 plt.ylabel("residual phase RMS [rad]")
@@ -543,7 +541,7 @@ plt.axhline(
     y=strehl_analytical_bioedge,
     color="k",
     linestyle="--",
-    label="analytical strehl ratio\n(fitting + temporal + readout noise + photon noise)",
+    label="analytical strehl ratio bioedge\n(fitting + temporal + readout noise + photon noise)",
 )
 plt.ylabel("Strehl ratio")
 plt.title("Closed Loop strehls")

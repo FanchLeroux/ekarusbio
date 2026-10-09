@@ -83,7 +83,7 @@ altitude = [0, 1000, 5000, 10000, 12000]  # [m] altitude of layers
 
 # ------------------- TELESCOPE ------------------ #
 
-diameter = 2  # [m] telescope diameter
+diameter = 1.8  # [m] telescope diameter
 n_subaperture = 41  # number of WFS subaperture along the telescope diameter
 n_pixel_per_subaperture = (
     4  # [pixel] sampling of the WFS subapertures in telescope pupil space
@@ -91,23 +91,31 @@ n_pixel_per_subaperture = (
 resolution = (
     n_subaperture * n_pixel_per_subaperture
 )  # resolution of the telescope driven by the WFS
-central_obstruction_ratio = 0.3  # ratio of the central obscuration
+central_obstruction_ratio = 0.318  # ratio of the central obscuration
+
 # ------------------------ DM ---------------------- #
 
 n_actuator = 24  # number of actuators
 
 # ----------------------- WFS ---------------------- #
 
+# Bi-O edge
 grey_width = (
     7.96 / 2
 )  # [lambda/D] Bi-O edge half grey width. Computed at 670 nm for F/# = 45
+polarization_leakage_factor = 0.05  # polarization leakage factor for the Bi-O edge
+
+# pyramid
 modulation = grey_width  # [lambda/D] modulation radius
+
+# both
 n_pix_separation = 10  # [pixel] separation ratio between the pupils
 light_threshold = (
     0.3 if grey_width > 0.0 else 0
 )  # light threshold to select the valid pixels
 detector_photon_noise = True
 detector_read_out_noise = 0.0  # e- RMS
+
 
 # -------------------- CALIBRATION - MODAL BASIS ---------------- #
 
@@ -186,6 +194,7 @@ bioedge = BioEdge(
     grey_width=grey_width,
     lightRatio=light_threshold,
     postProcessing="fullFrame",
+    polarization_leakage_factor=polarization_leakage_factor,
 )
 
 pyramid = Pyramid(

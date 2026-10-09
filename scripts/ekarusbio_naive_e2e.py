@@ -95,7 +95,7 @@ central_obstruction_ratio = 0.318  # ratio of the central obscuration
 
 # ------------------------ DM ---------------------- #
 
-n_actuator = 24  # number of actuators
+n_actuator = 24  # number of actuators. Total number of actuators on EKARUSDM is 468
 
 # ----------------------- WFS ---------------------- #
 

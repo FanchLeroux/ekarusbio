@@ -11,7 +11,13 @@ dependencies = [
     "astropy>=8.0.1",
     "matplotlib>=3.11.2",
     "numpy>=2.5.3",
+    "oopao",
+    "aopera"
 ]
+
+[tool.uv.sources]
+oopao = { path = "C:/Users/fleroux/Documents/francois/code/librairies/OOPAO", editable = true }
+aopera = { path = "C:/Users/fleroux/Documents/francois/code/librairies/aopera", editable = true }
 
 [project.scripts]
 ekarusbio = "ekarusbio:main"

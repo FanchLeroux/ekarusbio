@@ -21,6 +21,7 @@ from OOPAO.calibration.InteractionMatrix import InteractionMatrix
 from ekarusbio.pattern import get_circular_pupil
 from ekarusbio.modal_bases.KL_basis import compute_KL_basis
 from ekarusbio.sensitivity import compute_photon_noise_sensitivity
+from aopera.variance import var_fitting, var_temporal, var_aliasing
 from ekarusbio.analytical_budget import (
     compute_fitting,
     compute_temporal,

@@ -75,7 +75,7 @@ def compute_temporal(
         * ((Nr + 1) ** (1 / 3) - 1.15)
     )  # [rad^2 RMS]
 
-    return var_temporal_error
+    return var_temporal_error, bandwidth, Nr
 
 
 def compute_readout_noise(n_photons, reconstructor, readout_noise):

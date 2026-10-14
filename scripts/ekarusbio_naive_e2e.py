@@ -21,6 +21,8 @@ from OOPAO.calibration.InteractionMatrix import InteractionMatrix
 from ekarusbio.pattern import get_circular_pupil
 from ekarusbio.modal_bases.KL_basis import compute_KL_basis
 from ekarusbio.sensitivity import compute_photon_noise_sensitivity
+from aopera.otfpsf import number_radial
+from aopera.control import bandwidth
 from aopera.variance import var_fitting, var_temporal, var_aliasing
 from ekarusbio.analytical_budget import (
     compute_fitting,
@@ -77,7 +79,7 @@ fig_dir = config.root_dir / "outputs"
 
 # phot.R4 = [0.670e-6, 0.300e-6, 7.66e12]
 optical_band = "R4"  # optical band of the guide star
-n_photons_per_controlled_mode = 0.2
+n_photons_per_controlled_mode = 1.0
 
 # ------------------ ATMOSPHERE ----------------- #
 
@@ -213,12 +215,14 @@ n_measurement_points = int(np.sum(bioedge.validSignal) / 4)
 ngs.nPhoton = (
     n_photons_per_controlled_mode
     * loop_frequency
-    / (telescope_surface / n_measurement_points)
+    / (telescope_surface / n_controlled_modes)
 )  # nPhoton = # photons per s per m2
 
 ngs**tel * dm * bioedge  # coupling telescope, DM and WFS is mandatory to compute the number of photons per measurement point
 
 print(
+    f"# photons per second per m^2: {ngs.nPhoton}\n"
+    f"# photons per controlled mode per frame: {bioedge.cam.frame.sum() / n_controlled_modes}\n"
     f"# photons per measurement points: {bioedge.cam.frame.sum() / n_measurement_points}"
 )
 
@@ -331,26 +335,45 @@ reconstructor_lse_pyramid = np.pad(
     ((0, interaction_matrix_pyramid.shape[1] - n_controlled_modes), (0, 0)),
 )
 
-# %% Analytical error budget
+# %% needed for anaytical error budget computation
 
-n_act = np.ceil(2 * (modal_dm.modes.shape[1] / np.pi) ** 0.5)
-actuator_pitch = tel.D / n_act
-r0_at_wavelength = r0 * (wavelength / 500e-9) ** (
-    6 / 5
-)  # [m] Fried parameter at the wavelength of the guide star
 reconstructor_lse_bioedge_rad_normalized = (
     reconstructor_lse_bioedge * (2 * np.pi) / wavelength
 )
 reconstructor_lse_pyramid_rad_normalized = (
     reconstructor_lse_pyramid * (2 * np.pi) / wavelength
 )
+
+n_act = np.ceil(2 * (modal_dm.modes.shape[1] / np.pi) ** 0.5)
+actuator_pitch = tel.D / n_act
+r0_at_wavelength = r0 * (wavelength / 500e-9) ** (
+    6 / 5
+)  # [m] Fried parameter at the wavelength of the guide star
+
 n_photons_per_frame = (
     ngs.nPhoton * telescope_surface / loop_frequency
 )  # [photon/frame] number of photons per frame
 
+loop_bandwidth = bandwidth(
+    loop_integrator_gain, loop_delay, loop_frequency
+)  # [Hz] closed-loop bandwidth
+
+n_radial_modes = number_radial(n_act)  # number of radial modes
+
+# %% Analytical error budget - aopera
+
+var_fitting_aopera = var_fitting(r0_at_wavelength, 1 / (2 * actuator_pitch))
+var_temporal_aopera = var_temporal(
+    diameter, r0_at_wavelength, n_radial_modes, loop_bandwidth, np.mean(wind_speed)
+)
+var_aliasing_aopera = var_aliasing(r0_at_wavelength, 1 / (2 * actuator_pitch))
+
+# %% Analytical error budget - fanch
+
+
 fitting_error = compute_fitting(r0_at_wavelength, actuator_pitch)
 
-temporal_error = compute_temporal(
+temporal_error, _bandwidth, _Nr = compute_temporal(
     loop_frequency,
     loop_delay / loop_frequency,
     loop_integrator_gain,

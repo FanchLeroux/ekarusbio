@@ -72,6 +72,12 @@ fig_dir = config.root_dir / "outputs"
 
 # %% simulation parameters
 
+# ---------------------- NGS ---------------------- #
+
+# phot.R4 = [0.670e-6, 0.300e-6, 7.66e12]
+optical_band = "R4"  # optical band of the guide star
+n_photons_per_controlled_mode = 0.2
+
 # ------------------ ATMOSPHERE ----------------- #
 
 r0 = 0.1  # [m] value of r0 at 500 nm
@@ -103,7 +109,7 @@ n_actuator = 24  # number of actuators. Total number of actuators on EKARUSDM is
 grey_width = (
     7.96 / 2
 )  # [lambda/D] Bi-O edge half grey width. Computed at 670 nm for F/# = 45
-polarization_leakage_factor = 0.05  # polarization leakage factor for the Bi-O edge
+polarization_leakage_factor = 0.0  # polarization leakage factor for the Bi-O edge
 
 # pyramid
 modulation = grey_width  # [lambda/D] modulation radius
@@ -132,13 +138,6 @@ n_controlled_modes = int(
     np.pi * (n_actuator / 2) ** 2 * (1 - central_obstruction_ratio**2)
 )
 n_iter = 200
-
-# ---------------------- NGS ---------------------- #
-
-# phot.R4 = [0.670e-6, 0.300e-6, 7.66e12]
-optical_band = "R4"  # optical band of the guide star
-n_photons_per_controlled_mode = 2
-
 
 # %% Build objects
 

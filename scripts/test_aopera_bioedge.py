@@ -17,9 +17,9 @@ from aopera.otfpsf import otf_diffraction, otf2psf
 
 # %% Parameters
 
-nx = 10  # number of pixels for simulation
-samp = 2  # sampling [pixels per lambda/D]
-grey_width = 0.0  # width of the grey area in lambda/D
+nx = 2048  # number of pixels for simulation
+samp = 8  # sampling [pixels per lambda/D]
+grey_width = 8.0  # width of the grey area in lambda/D
 grey_length = None  # length of the grey area in pixels (None for full mask)
 
 markersize = 8
@@ -130,6 +130,7 @@ pyramid_sensitivity = ffwfs_sensitivity(
 
 freq_diagonal_cut = np.arange(sensitivity_total.shape[0] // 2) / samp * np.sqrt(2)
 freq_cartesian_cut = np.arange(sensitivity_total.shape[0] // 2) / samp
+x_lim = 0.25 * freq_diagonal_cut[-1]
 
 plt.figure()
 plt.imshow(sensitivity_total, cmap="hot")
@@ -156,10 +157,12 @@ axes[0].plot(
 )
 axes[0].axhline(1, color="k", linestyle="--")
 axes[0].axhline(2.0**0.5, color="k", linestyle="-")
+axes[0].axvline(grey_width / 2, color="grey", linestyle=":")
 axes[0].set_xlabel("Spatial frequency [D/lambda]")
 axes[0].set_ylabel("Sensitivity")
 axes[0].legend()
 axes[0].set_title("Bi-O edge")
+axes[0].set_xlim(-0.1, x_lim)
 
 axes[1].plot(
     freq_cartesian_cut, pyramid_sensitivity[nx // 2, nx // 2 :], label="Horizontal"
@@ -177,10 +180,12 @@ axes[1].plot(
 )
 axes[1].axhline(1, color="k", linestyle="--")
 axes[1].axhline(2.0**0.5 / 2, color="k", linestyle=":")
+axes[1].axvline(grey_width / 2, color="grey", linestyle=":")
 axes[1].set_xlabel("Spatial frequency [D/lambda]")
 axes[1].set_ylabel("Sensitivity")
 axes[1].legend()
 axes[1].set_title("Pyramid")
+axes[1].set_xlim(-0.1, x_lim)
 
 # %%
 
@@ -236,10 +241,17 @@ ax.axhline(
     linestyle="-.",
     label=r"Pyramid reference ($\sqrt{2}/2$)",
 )
+ax.axvline(
+    grey_width / 2,
+    color="grey",
+    linestyle=":",
+    label=r"Grey area width ($\Delta$)",
+)
 
 ax.set_xlabel("Spatial frequency [D/lambda]")
 ax.set_ylabel("Sensitivity")
 ax.set_title("Sensitivity comparison: Bi-O-Edge vs Pyramid")
+ax.set_xlim(-0.1, x_lim)
 ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
 
 # %%

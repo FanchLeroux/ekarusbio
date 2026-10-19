@@ -17,16 +17,18 @@ from aopera.otfpsf import otf_diffraction, otf2psf
 
 # %% Parameters
 
-nx = 128  # number of pixels for simulation
+nx = 512  # number of pixels for simulation
 samp = 8  # sampling [pixels per lambda/D]
-grey_width = 20.0  # half-width of the grey area in pixels
-grey_length = None  # half-length of the grey area in pixels (None for full mask)
+grey_width = 8.0  # width of the grey area in lambda/D
+grey_length = None  # length of the grey area in pixels (None for full mask)
 
 markersize = 8
 
 # %% Compute the Bi-O edge masks
 
-masks = compute_bioedge_masks(nx, grey_width, grey_length)
+masks = compute_bioedge_masks(
+    nx, samp * grey_width, samp * grey_length if grey_length is not None else None
+)
 
 try:
     import cupy as cp
@@ -118,11 +120,11 @@ sensitivity_total = (
 # %% Modulated pyramid sensitivity
 
 mask_pywfs = pyramid_mask(nx, 4)
-pyramid_modulation_path = modulation(nx, grey_width // 2, samp).get()
+pyramid_modulation_path = modulation(nx, grey_width / 2, samp).get()
 
 pyramid_sensitivity = ffwfs_sensitivity(
     mask_pywfs, pyramid_modulation_path, psf_calib, psf_current
-).get()
+).get() * np.sqrt(4)
 
 # %% Plot sensitivity
 
@@ -154,8 +156,63 @@ axes[1].plot(
     [pyramid_sensitivity[nx // 2 + k, nx // 2 + k] for k in range(nx // 2)],
     label="Diagonal",
 )
+axes[1].axhline(1, color="k", linestyle="--")
+axes[1].axhline(2.0**0.5 / 2, color="k", linestyle=":")
 axes[1].set_xlabel("Pixel")
 axes[1].set_ylabel("Sensitivity")
 axes[1].legend()
+axes[1].set_title("Pyramid")
 
 # %%
+
+fig, ax = plt.subplots(constrained_layout=True)
+
+# Bi-O-Edge
+ax.plot(
+    sensitivity_total[nx // 2, nx // 2 :],
+    label="Bi-O-Edge — Horizontal",
+)
+ax.plot(
+    sensitivity_total[nx // 2 :, nx // 2],
+    linestyle=":",
+    label="Bi-O-Edge — Vertical",
+)
+ax.plot(
+    [sensitivity_total[nx // 2 + k, nx // 2 + k] for k in range(nx // 2)],
+    label="Bi-O-Edge — Diagonal",
+)
+
+# Pyramid
+ax.plot(
+    pyramid_sensitivity[nx // 2, nx // 2 :],
+    label="Pyramid — Horizontal",
+)
+ax.plot(
+    pyramid_sensitivity[nx // 2 :, nx // 2],
+    linestyle=":",
+    label="Pyramid — Vertical",
+)
+ax.plot(
+    [pyramid_sensitivity[nx // 2 + k, nx // 2 + k] for k in range(nx // 2)],
+    label="Pyramid — Diagonal",
+)
+
+# Reference levels
+ax.axhline(1, color="k", linestyle="--", label="Sensitivity = 1")
+ax.axhline(
+    2.0**0.5,
+    color="k",
+    linestyle="-",
+    label=r"Bi-O-Edge reference ($\sqrt{2}$)",
+)
+ax.axhline(
+    2.0**0.5 / 2,
+    color="k",
+    linestyle="-.",
+    label=r"Pyramid reference ($\sqrt{2}/2$)",
+)
+
+ax.set_xlabel("Pixel")
+ax.set_ylabel("Sensitivity")
+ax.set_title("Sensitivity comparison: Bi-O-Edge vs Pyramid")
+ax.legend()

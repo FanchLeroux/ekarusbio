@@ -7,12 +7,19 @@ from aopera.backend import set_backend
 
 set_backend(mode="cpu")
 
-from aopera.ffwfs import compute_bioedge_masks
+from aopera.ffwfs import (
+    ffwfs_sensitivity,
+    modulation,
+    compute_bioedge_masks,
+    pyramid_mask,
+)
+from aopera.otfpsf import otf_diffraction, otf2psf
 
 # %% Parameters
 
-nx = 64  # number of pixels for simulation
-grey_width = 12.0  # half-width of the grey area in pixels
+nx = 128  # number of pixels for simulation
+samp = 8  # sampling [pixels per lambda/D]
+grey_width = 20.0  # half-width of the grey area in pixels
 grey_length = None  # half-length of the grey area in pixels (None for full mask)
 
 markersize = 8
@@ -66,13 +73,7 @@ print(f"Total transmission: {total_transmission:.2f}")
 
 plt.show()
 
-# %%
-
-from aopera.ffwfs import ffwfs_sensitivity, modulation
-
-from aopera.otfpsf import otf_diffraction, otf2psf
-
-samp = 2
+# %% Bi-O edge sensitivity
 
 otf_diff = otf_diffraction(nx, occ=0, samp=samp)
 psf_diff = otf2psf(otf_diff)
@@ -80,29 +81,29 @@ psf_diff = otf2psf(otf_diff)
 psf_calib = psf_diff
 psf_current = psf_diff
 
-modulation_path = modulation(nx, 0.0, samp).get()
+modulation_path_bioedge = modulation(nx, 0.0, samp).get()
 
 sensitivity_left_1_right_0 = ffwfs_sensitivity(
     masks[0],
-    modulation_path,
+    modulation_path_bioedge,
     psf_calib,
     psf_current,
 ).get()
 sensitivity_left_0_right_1 = ffwfs_sensitivity(
     masks[1],
-    modulation_path,
+    modulation_path_bioedge,
     psf_calib,
     psf_current,
 ).get()
 sensitivity_top_1_bottom_0 = ffwfs_sensitivity(
     masks[2],
-    modulation_path,
+    modulation_path_bioedge,
     psf_calib,
     psf_current,
 ).get()
 sensitivity_top_0_bottom_1 = ffwfs_sensitivity(
     masks[3],
-    modulation_path,
+    modulation_path_bioedge,
     psf_calib,
     psf_current,
 ).get()
@@ -114,8 +115,24 @@ sensitivity_total = (
     + sensitivity_top_0_bottom_1
 )
 
+# %% Modulated pyramid sensitivity
+
+mask_pywfs = pyramid_mask(nx, 4)
+pyramid_modulation_path = modulation(nx, grey_width // 2, samp).get()
+
+pyramid_sensitivity = ffwfs_sensitivity(
+    mask_pywfs, pyramid_modulation_path, psf_calib, psf_current
+).get()
+
+# %% Plot sensitivity
+
 plt.figure()
 plt.imshow(sensitivity_total, cmap="hot")
+plt.title("Bi-O edge sensitivity")
+
+plt.figure()
+plt.imshow(pyramid_sensitivity, cmap="hot")
+plt.title("Pyramid sensitivity")
 
 fig, axes = plt.subplots(1, 2, constrained_layout=True)
 axes[0].plot(sensitivity_total[nx // 2, nx // 2 :], label="Horizontal")
@@ -131,6 +148,14 @@ axes[0].set_ylabel("Sensitivity")
 axes[0].legend()
 axes[0].set_title("Bi-O edge")
 
+axes[1].plot(pyramid_sensitivity[nx // 2, nx // 2 :], label="Horizontal")
+axes[1].plot(pyramid_sensitivity[nx // 2 :, nx // 2], linestyle=":", label="Vertical")
+axes[1].plot(
+    [pyramid_sensitivity[nx // 2 + k, nx // 2 + k] for k in range(nx // 2)],
+    label="Diagonal",
+)
 axes[1].set_xlabel("Pixel")
 axes[1].set_ylabel("Sensitivity")
 axes[1].legend()
+
+# %%

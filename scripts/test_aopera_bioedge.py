@@ -3,17 +3,21 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from aopera.backend import set_backend
+
+set_backend(mode="cpu")
+
 from aopera.ffwfs import compute_bioedge_masks
 
 # %% Parameters
 
-nx = 10  # number of pixels for simulation
-grey_width = 6.0  # half-width of the grey area in pixels
+nx = 64  # number of pixels for simulation
+grey_width = 12.0  # half-width of the grey area in pixels
 grey_length = None  # half-length of the grey area in pixels (None for full mask)
 
 markersize = 8
 
-# %% Compute the BioEdge masks
+# %% Compute the Bi-O edge masks
 
 masks = compute_bioedge_masks(nx, grey_width, grey_length)
 
@@ -66,13 +70,67 @@ plt.show()
 
 from aopera.ffwfs import ffwfs_sensitivity, modulation
 
-modulation_path = modulation(nx, 0.0, 1.0).get()
+from aopera.otfpsf import otf_diffraction, otf2psf
 
-psf = np.abs(np.fft.fftshift(np.fft.fft2((np.ones((nx, nx)))))) ** 2
+samp = 2
 
-sensitivity = ffwfs_sensitivity(
+otf_diff = otf_diffraction(nx, occ=0, samp=samp)
+psf_diff = otf2psf(otf_diff)
+
+psf_calib = psf_diff
+psf_current = psf_diff
+
+modulation_path = modulation(nx, 0.0, samp).get()
+
+sensitivity_left_1_right_0 = ffwfs_sensitivity(
     masks[0],
     modulation_path,
-    psf,
-    psf,
+    psf_calib,
+    psf_current,
 ).get()
+sensitivity_left_0_right_1 = ffwfs_sensitivity(
+    masks[1],
+    modulation_path,
+    psf_calib,
+    psf_current,
+).get()
+sensitivity_top_1_bottom_0 = ffwfs_sensitivity(
+    masks[2],
+    modulation_path,
+    psf_calib,
+    psf_current,
+).get()
+sensitivity_top_0_bottom_1 = ffwfs_sensitivity(
+    masks[3],
+    modulation_path,
+    psf_calib,
+    psf_current,
+).get()
+
+sensitivity_total = (
+    sensitivity_left_1_right_0
+    + sensitivity_left_0_right_1
+    + sensitivity_top_1_bottom_0
+    + sensitivity_top_0_bottom_1
+)
+
+plt.figure()
+plt.imshow(sensitivity_total, cmap="hot")
+
+fig, axes = plt.subplots(1, 2, constrained_layout=True)
+axes[0].plot(sensitivity_total[nx // 2, nx // 2 :], label="Horizontal")
+axes[0].plot(sensitivity_total[nx // 2 :, nx // 2], linestyle=":", label="Vertical")
+axes[0].plot(
+    [sensitivity_total[nx // 2 + k, nx // 2 + k] for k in range(nx // 2)],
+    label="Diagonal",
+)
+axes[0].axhline(1, color="k", linestyle="--")
+axes[0].axhline(2.0**0.5, color="k", linestyle="-")
+axes[0].set_xlabel("Pixel")
+axes[0].set_ylabel("Sensitivity")
+axes[0].legend()
+axes[0].set_title("Bi-O edge")
+
+axes[1].set_xlabel("Pixel")
+axes[1].set_ylabel("Sensitivity")
+axes[1].legend()

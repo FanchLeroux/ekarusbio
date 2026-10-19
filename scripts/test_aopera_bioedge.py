@@ -17,9 +17,9 @@ from aopera.otfpsf import otf_diffraction, otf2psf
 
 # %% Parameters
 
-nx = 512  # number of pixels for simulation
-samp = 8  # sampling [pixels per lambda/D]
-grey_width = 8.0  # width of the grey area in lambda/D
+nx = 10  # number of pixels for simulation
+samp = 2  # sampling [pixels per lambda/D]
+grey_width = 0.0  # width of the grey area in lambda/D
 grey_length = None  # length of the grey area in pixels (None for full mask)
 
 markersize = 8
@@ -120,13 +120,16 @@ sensitivity_total = (
 # %% Modulated pyramid sensitivity
 
 mask_pywfs = pyramid_mask(nx, 4)
-pyramid_modulation_path = modulation(nx, grey_width / 2, samp).get()
+modulation_path_pyramid = modulation(nx, grey_width / 2, samp).get()
 
 pyramid_sensitivity = ffwfs_sensitivity(
-    mask_pywfs, pyramid_modulation_path, psf_calib, psf_current
+    mask_pywfs, modulation_path_pyramid, psf_calib, psf_current
 ).get() * np.sqrt(4)
 
 # %% Plot sensitivity
+
+freq_diagonal_cut = np.arange(sensitivity_total.shape[0] // 2) / samp * np.sqrt(2)
+freq_cartesian_cut = np.arange(sensitivity_total.shape[0] // 2) / samp
 
 plt.figure()
 plt.imshow(sensitivity_total, cmap="hot")
@@ -137,28 +140,44 @@ plt.imshow(pyramid_sensitivity, cmap="hot")
 plt.title("Pyramid sensitivity")
 
 fig, axes = plt.subplots(1, 2, constrained_layout=True)
-axes[0].plot(sensitivity_total[nx // 2, nx // 2 :], label="Horizontal")
-axes[0].plot(sensitivity_total[nx // 2 :, nx // 2], linestyle=":", label="Vertical")
 axes[0].plot(
-    [sensitivity_total[nx // 2 + k, nx // 2 + k] for k in range(nx // 2)],
+    freq_cartesian_cut, sensitivity_total[nx // 2, nx // 2 :], label="Horizontal"
+)
+axes[0].plot(
+    freq_cartesian_cut,
+    sensitivity_total[nx // 2 :, nx // 2],
+    linestyle=":",
+    label="Vertical",
+)
+axes[0].plot(
+    freq_diagonal_cut,
+    np.diag(sensitivity_total)[nx // 2 :],
     label="Diagonal",
 )
 axes[0].axhline(1, color="k", linestyle="--")
 axes[0].axhline(2.0**0.5, color="k", linestyle="-")
-axes[0].set_xlabel("Pixel")
+axes[0].set_xlabel("Spatial frequency [D/lambda]")
 axes[0].set_ylabel("Sensitivity")
 axes[0].legend()
 axes[0].set_title("Bi-O edge")
 
-axes[1].plot(pyramid_sensitivity[nx // 2, nx // 2 :], label="Horizontal")
-axes[1].plot(pyramid_sensitivity[nx // 2 :, nx // 2], linestyle=":", label="Vertical")
 axes[1].plot(
-    [pyramid_sensitivity[nx // 2 + k, nx // 2 + k] for k in range(nx // 2)],
+    freq_cartesian_cut, pyramid_sensitivity[nx // 2, nx // 2 :], label="Horizontal"
+)
+axes[1].plot(
+    freq_cartesian_cut,
+    pyramid_sensitivity[nx // 2 :, nx // 2],
+    linestyle=":",
+    label="Vertical",
+)
+axes[1].plot(
+    freq_diagonal_cut,
+    np.diag(pyramid_sensitivity)[nx // 2 :],
     label="Diagonal",
 )
 axes[1].axhline(1, color="k", linestyle="--")
 axes[1].axhline(2.0**0.5 / 2, color="k", linestyle=":")
-axes[1].set_xlabel("Pixel")
+axes[1].set_xlabel("Spatial frequency [D/lambda]")
 axes[1].set_ylabel("Sensitivity")
 axes[1].legend()
 axes[1].set_title("Pyramid")
@@ -169,31 +188,37 @@ fig, ax = plt.subplots(constrained_layout=True)
 
 # Bi-O-Edge
 ax.plot(
+    freq_cartesian_cut,
     sensitivity_total[nx // 2, nx // 2 :],
     label="Bi-O-Edge — Horizontal",
 )
 ax.plot(
+    freq_cartesian_cut,
     sensitivity_total[nx // 2 :, nx // 2],
     linestyle=":",
     label="Bi-O-Edge — Vertical",
 )
 ax.plot(
-    [sensitivity_total[nx // 2 + k, nx // 2 + k] for k in range(nx // 2)],
+    freq_diagonal_cut,
+    np.diag(sensitivity_total)[nx // 2 :],
     label="Bi-O-Edge — Diagonal",
 )
 
 # Pyramid
 ax.plot(
+    freq_cartesian_cut,
     pyramid_sensitivity[nx // 2, nx // 2 :],
     label="Pyramid — Horizontal",
 )
 ax.plot(
+    freq_cartesian_cut,
     pyramid_sensitivity[nx // 2 :, nx // 2],
     linestyle=":",
     label="Pyramid — Vertical",
 )
 ax.plot(
-    [pyramid_sensitivity[nx // 2 + k, nx // 2 + k] for k in range(nx // 2)],
+    freq_diagonal_cut,
+    np.diag(pyramid_sensitivity)[nx // 2 :],
     label="Pyramid — Diagonal",
 )
 
@@ -212,7 +237,9 @@ ax.axhline(
     label=r"Pyramid reference ($\sqrt{2}/2$)",
 )
 
-ax.set_xlabel("Pixel")
+ax.set_xlabel("Spatial frequency [D/lambda]")
 ax.set_ylabel("Sensitivity")
 ax.set_title("Sensitivity comparison: Bi-O-Edge vs Pyramid")
-ax.legend()
+ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+
+# %%

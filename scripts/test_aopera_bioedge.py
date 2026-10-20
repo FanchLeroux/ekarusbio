@@ -144,7 +144,7 @@ plt.figure()
 plt.imshow(s_ron_pyramid, cmap="hot")
 plt.title("Pyramid sensitivity")
 
-fig, axes = plt.subplots(1, 2, constrained_layout=True)
+fig, axes = plt.subplots(1, 2, figsize=(7, 0.5 * 7), constrained_layout=True)
 axes[0].plot(freq_cartesian_cut, s_ron_bioedge[nx // 2, nx // 2 :], label="Horizontal")
 axes[0].plot(
     freq_diagonal_cut,
@@ -175,7 +175,7 @@ axes[1].legend()
 axes[1].set_title("Pyramid")
 axes[1].set_xlim(-0.1, x_lim)
 
-fig, axes = plt.subplots(1, 2, constrained_layout=True)
+fig, axes = plt.subplots(1, 2, figsize=(7, 0.5 * 7), constrained_layout=True)
 axes[0].plot(freq_cartesian_cut, s_ph_bioedge[nx // 2, nx // 2 :], label="Horizontal")
 axes[0].plot(
     freq_diagonal_cut,
@@ -209,7 +209,7 @@ axes[1].set_xlim(-0.1, x_lim)
 # %% Pyramid and Bi-O edge sensitivity comparison
 
 # readout noise
-fig, ax = plt.subplots(constrained_layout=True)
+fig, ax = plt.subplots(figsize=(7, 0.75 * 7), constrained_layout=True)
 
 # Bi-O edge
 ax.plot(
@@ -235,25 +235,6 @@ ax.plot(
     label="Pyramid — Diagonal",
 )
 
-# Reference levels
-ax.axhline(
-    1,
-    color="k",
-    linestyle="--",
-    label="Theory: pyramid and Bi-O edge - along edges (1)",
-)
-ax.axhline(
-    2.0**0.5,
-    color="k",
-    linestyle="-",
-    label=r"Theory: Bi-O edge - diagonal ($\sqrt{2}$)",
-)
-ax.axhline(
-    2.0**0.5 / 2,
-    color="k",
-    linestyle="-.",
-    label=r"Theory: pyramid - diagonal ($\sqrt{2}/2$)",
-)
 ax.axvline(
     grey_width / 2,
     color="grey",
@@ -313,6 +294,7 @@ ax.axhline(
     linestyle="-.",
     label=r"Theory: pyramid - diagonal ($\sqrt{2}/2$)",
 )
+
 ax.axvline(
     grey_width / 2,
     color="grey",

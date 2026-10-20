@@ -2,7 +2,6 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-
 from aopera.backend import set_backend
 
 set_backend(mode="cpu")
@@ -54,7 +53,7 @@ def compute_amplitude_pyramid_mask(nx, n_faces, theta_ref=0):
 # %% Parameters
 
 nx = 1024  # number of pixels for simulation
-samp = 8  # sampling [pixels per lambda/D]
+samp = 4  # sampling [pixels per lambda/D]
 grey_width = 5.0  # width of the grey area in lambda/D
 modulation_radius = grey_width / 2  # modulation amplitude in lambda/D
 grey_length = None  # length of the grey area in pixels (None for full mask)
@@ -315,7 +314,7 @@ axes[0].plot(
     label="Diagonal",
 )
 axes[0].axhline(
-    1, color="k", linestyle="--", label="Theory: modulated pyramid - along edges (1)"
+    1, color="k", linestyle="--", label="Theory: Bi-O edge - along edges (1)"
 )
 axes[0].axhline(
     2.0**0.5,

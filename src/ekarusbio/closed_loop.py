@@ -32,6 +32,7 @@ def close_the_loop(
     seed=0,
     polc=False,
     interaction_matrix=None,
+    compute_strehl=True,
     save_telemetry=False,
     save_psf=False,
 ):
@@ -45,7 +46,9 @@ def close_the_loop(
 
     total = np.zeros(n_iter)  # turbulence phase std [nm]
     residual = np.zeros(n_iter)  # residual phase std [nm]
-    strehl = np.zeros(n_iter)  # Strehl Ratio
+
+    if compute_strehl:
+        strehl = np.zeros(n_iter)  # Strehl Ratio
 
     buffer_wfs_measure = np.zeros([wfs.signal.shape[0]] + [delay])
 
@@ -99,7 +102,21 @@ def close_the_loop(
             wfs_signals[:, k] = buffer_wfs_measure[:, 0]
 
         residual[k] = np.std(tel.OPD[np.where(tel.pupil > 0)]) * 1e9  # [nm]
-        strehl[k] = np.exp(-np.var(tel.src.phase[np.where(tel.pupil > 0)]))
+        if compute_strehl:
+            strehl[k] = (
+                np.abs(
+                    np.sum(
+                        np.exp(
+                            1j
+                            * tel.OPD[np.where(tel.pupil > 0)]
+                            * 2
+                            * np.pi
+                            / ngs.wavelength
+                        )
+                    )
+                )
+                ** 2
+            ) / tel.pupil.sum() ** 2  # Ref. V. N. Mahajan (1982)
 
         if polc:
             if interaction_matrix is None:

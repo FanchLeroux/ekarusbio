@@ -463,6 +463,7 @@ print(
 
 seed = 1  # seed for atmosphere computation
 
+compute_strehl = True  # compute strehl ratio
 save_telemetry = True  # save telemetry
 save_psf = True  # save short exposure PSF
 
@@ -500,17 +501,20 @@ closed_loop_result_pyramid = close_the_loop(
     read_out_noise=detector_read_out_noise,
     polc=False,
     seed=seed,
+    compute_strehl=compute_strehl,
     save_telemetry=save_telemetry,
     save_psf=save_psf,
 )
 
 total_lse_bioedge = closed_loop_result_bioedge.total
 residual_lse_bioedge = closed_loop_result_bioedge.residual
-strehl_lse_bioedge = closed_loop_result_bioedge.strehl
 
 total_lse_pyramid = closed_loop_result_pyramid.total
 residual_lse_pyramid = closed_loop_result_pyramid.residual
-strehl_lse_pyramid = closed_loop_result_pyramid.strehl
+
+if compute_strehl:
+    strehl_lse_bioedge = closed_loop_result_bioedge.strehl
+    strehl_lse_pyramid = closed_loop_result_pyramid.strehl
 
 if save_telemetry:
 

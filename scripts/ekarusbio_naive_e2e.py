@@ -100,7 +100,7 @@ n_pixel_per_subaperture = (
 resolution = (
     n_subaperture * n_pixel_per_subaperture
 )  # resolution of the telescope driven by the WFS
-central_obstruction_ratio = 0.318  # ratio of the central obscuration
+central_obstruction_ratio = 0.0  # 0.318  # ratio of the central obscuration
 
 # ------------------------ DM ---------------------- #
 
@@ -109,9 +109,7 @@ n_actuator = 24  # number of actuators. Total number of actuators on EKARUSDM is
 # ----------------------- WFS ---------------------- #
 
 # Bi-O edge
-grey_width = (
-    7.96 / 2
-)  # [lambda/D] Bi-O edge half grey width. Computed at 670 nm for F/# = 45
+grey_width = 5  # 7.96 / 2  # [lambda/D] Bi-O edge half grey width. Computed at 670 nm for F/# = 45
 polarization_leakage_factor = 0.0  # polarization leakage factor for the Bi-O edge
 
 # pyramid
@@ -464,13 +462,14 @@ print(
 seed = 1  # seed for atmosphere computation
 
 compute_strehl = True  # compute strehl ratio
+compute_optical_gains = True  # compute optical gains
 save_telemetry = True  # save telemetry
 save_psf = True  # save short exposure PSF
 
 closed_loop_result_bioedge = close_the_loop(
-    tel,
     ngs,
     atm,
+    tel,
     modal_dm,
     bioedge,
     reconstructor_lse_bioedge,
@@ -479,18 +478,18 @@ closed_loop_result_bioedge = close_the_loop(
     delay=loop_delay,
     photon_noise=detector_photon_noise,
     read_out_noise=detector_read_out_noise,
-    polc=False,
     seed=seed,
+    polc=False,
     save_telemetry=save_telemetry,
     save_psf=save_psf,
 )
 
-# unpack closed loop results
+# %%
 
 closed_loop_result_pyramid = close_the_loop(
-    tel,
     ngs,
     atm,
+    tel,
     modal_dm,
     pyramid,
     reconstructor_lse_pyramid,
@@ -499,12 +498,20 @@ closed_loop_result_pyramid = close_the_loop(
     delay=loop_delay,
     photon_noise=detector_photon_noise,
     read_out_noise=detector_read_out_noise,
-    polc=False,
     seed=seed,
+    polc=False,
+    interaction_matrix=None,
+    calibration_basis=stroke_rad
+    * calibration_basis.reshape(
+        (tel.pupil.shape[0], tel.pupil.shape[1], calibration_basis.shape[1])
+    ),
     compute_strehl=compute_strehl,
+    compute_optical_gains=compute_optical_gains,
     save_telemetry=save_telemetry,
     save_psf=save_psf,
 )
+
+# Unpack closed loop results
 
 total_lse_bioedge = closed_loop_result_bioedge.total
 residual_lse_bioedge = closed_loop_result_bioedge.residual
@@ -515,6 +522,10 @@ residual_lse_pyramid = closed_loop_result_pyramid.residual
 if compute_strehl:
     strehl_lse_bioedge = closed_loop_result_bioedge.strehl
     strehl_lse_pyramid = closed_loop_result_pyramid.strehl
+
+if compute_optical_gains:
+    # optical_gains_lse_bioedge = closed_loop_result_bioedge.optical_gains
+    optical_gains_lse_pyramid = closed_loop_result_pyramid.optical_gains
 
 if save_telemetry:
 
@@ -553,6 +564,10 @@ long_exposure_psf_lse_pyramid = np.sum(
 
 # %% plots
 
+# pyramid og
+plt.figure()
+plt.plot(optical_gains_lse_pyramid.mean(axis=1))
+
 # noise propagation
 plt.figure()
 plt.plot(
@@ -565,7 +580,7 @@ plt.plot(
 )
 plt.yscale("log")
 plt.title("modal uniform noise propagation")
-plt.xlabel("# modes")
+plt.xlabel("# KL mode")
 plt.legend()
 
 # residuals

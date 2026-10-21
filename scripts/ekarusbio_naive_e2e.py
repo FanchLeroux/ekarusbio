@@ -463,17 +463,10 @@ print(
 
 seed = 1  # seed for atmosphere computation
 
-(
-    total_lse_bioedge,
-    residual_lse_bioedge,
-    strehl_lse_bioedge,
-    dm_coefs_lse_bioedge,
-    turbulence_phase_screens_lse_bioedge,
-    residual_phase_screens_lse_bioedge,
-    wfs_frames_lse_bioedge,
-    wfs_signals_lse_bioedge,
-    short_exposure_psf_lse_bioedge,
-) = close_the_loop(
+save_telemetry = True  # save telemetry
+save_psf = True  # save short exposure PSF
+
+closed_loop_result_bioedge = close_the_loop(
     tel,
     ngs,
     atm,
@@ -487,21 +480,13 @@ seed = 1  # seed for atmosphere computation
     read_out_noise=detector_read_out_noise,
     polc=False,
     seed=seed,
-    save_telemetry=True,
-    save_psf=True,
+    save_telemetry=save_telemetry,
+    save_psf=save_psf,
 )
 
-(
-    total_lse_pyramid,
-    residual_lse_pyramid,
-    strehl_lse_pyramid,
-    dm_coefs_lse_pyramid,
-    turbulence_phase_screens_lse_pyramid,
-    residual_phase_screens_lse_pyramid,
-    wfs_frames_lse_pyramid,
-    wfs_signals_lse_pyramid,
-    short_exposure_psf_lse_pyramid,
-) = close_the_loop(
+# unpack closed loop results
+
+closed_loop_result_pyramid = close_the_loop(
     tel,
     ngs,
     atm,
@@ -515,9 +500,44 @@ seed = 1  # seed for atmosphere computation
     read_out_noise=detector_read_out_noise,
     polc=False,
     seed=seed,
-    save_telemetry=True,
-    save_psf=True,
+    save_telemetry=save_telemetry,
+    save_psf=save_psf,
 )
+
+total_lse_bioedge = closed_loop_result_bioedge.total
+residual_lse_bioedge = closed_loop_result_bioedge.residual
+strehl_lse_bioedge = closed_loop_result_bioedge.strehl
+
+total_lse_pyramid = closed_loop_result_pyramid.total
+residual_lse_pyramid = closed_loop_result_pyramid.residual
+strehl_lse_pyramid = closed_loop_result_pyramid.strehl
+
+if save_telemetry:
+
+    dm_coefs_lse_bioedge = closed_loop_result_bioedge.dm_coefs
+    turbulence_phase_screens_lse_bioedge = (
+        closed_loop_result_bioedge.turbulence_phase_screens
+    )
+    residual_phase_screens_lse_bioedge = (
+        closed_loop_result_bioedge.residual_phase_screens
+    )
+    wfs_frames_lse_bioedge = closed_loop_result_bioedge.wfs_frames
+    wfs_signals_lse_bioedge = closed_loop_result_bioedge.wfs_signals
+
+    dm_coefs_lse_pyramid = closed_loop_result_pyramid.dm_coefs
+    turbulence_phase_screens_lse_pyramid = (
+        closed_loop_result_pyramid.turbulence_phase_screens
+    )
+    residual_phase_screens_lse_pyramid = (
+        closed_loop_result_pyramid.residual_phase_screens
+    )
+    wfs_frames_lse_pyramid = closed_loop_result_pyramid.wfs_frames
+    wfs_signals_lse_pyramid = closed_loop_result_pyramid.wfs_signals
+
+if save_psf:
+
+    short_exposure_psf_lse_bioedge = closed_loop_result_bioedge.short_exposure_psf
+    short_exposure_psf_lse_pyramid = closed_loop_result_pyramid.short_exposure_psf
 
 # post processing
 long_exposure_psf_lse_bioedge = np.sum(

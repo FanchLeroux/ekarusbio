@@ -79,7 +79,7 @@ fig_dir = config.root_dir / "outputs"
 
 # phot.R4 = [0.670e-6, 0.300e-6, 7.66e12]
 optical_band = "R4"  # optical band of the guide star
-n_photons_per_controlled_mode = 1.0
+n_photons_per_controlled_mode = 100
 
 # ------------------ ATMOSPHERE ----------------- #
 
@@ -223,7 +223,7 @@ ngs**tel * dm * bioedge  # coupling telescope, DM and WFS is mandatory to comput
 print(
     f"# photons per second per m^2: {ngs.nPhoton}\n"
     f"# photons per controlled mode per frame: {bioedge.cam.frame.sum() / n_controlled_modes}\n"
-    f"# photons per measurement points: {bioedge.cam.frame.sum() / n_measurement_points}"
+    f"# photons per measurement points per frame: {bioedge.cam.frame.sum() / n_measurement_points}"
 )
 
 # %% ------------------------- MODAL BASIS -------------------------------

@@ -2,11 +2,6 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from aopera.backend import set_backend
-
-set_backend(mode="cpu")
-
-from aopera.backend import np, fft, spc, scnd, trapz, cpuArray, gpuEnabled
 
 from aopera.ffwfs import (
     ffwfs_sensitivity,

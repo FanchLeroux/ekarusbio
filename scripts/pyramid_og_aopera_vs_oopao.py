@@ -5,20 +5,8 @@ Run a full SH-WFS or P-WFS simulation, both on OOAPO and aopera.
 """
 
 import os
-import builtins
 
-# In some SLURM environments, CuPy import fails or wastes time if no GPU is allocated.
-# If CUDA_VISIBLE_DEVICES is not set, we block CuPy import at runtime.
-if not os.environ.get("CUDA_VISIBLE_DEVICES"):  # None or ""
-    _real_import = builtins.__import__
-
-    def _blocked_import(name, globals=None, locals=None, fromlist=(), level=0):
-        if name == "cupy" or name.startswith("cupy."):
-            raise ImportError("CuPy disabled (no GPU allocated)")
-        return _real_import(name, globals, locals, fromlist, level)
-
-    builtins.__import__ = _blocked_import
-
+# force aopera to run on CPU to avoid Cupy array issues
 os.environ["AOPERA_DISABLE_GPU"] = "TRUE"
 
 import matplotlib.pyplot as plt

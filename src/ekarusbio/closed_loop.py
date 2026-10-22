@@ -12,6 +12,13 @@ from OOPAO.BioEdge import BioEdge
 from OOPAO.GainSensingCamera import GainSensingCamera
 
 
+# tbd
+@dataclass
+class OpenLoopResult:
+    short_exposure_psf: np.ndarray
+    phase_screens: np.ndarray
+
+
 @dataclass
 class ClosedLoopResult:
     total: np.ndarray
@@ -24,6 +31,44 @@ class ClosedLoopResult:
     wfs_frames: np.ndarray = None
     wfs_signals: np.ndarray = None
     short_exposure_psf: np.ndarray = None
+
+
+# tbd
+def record_open_loop(ngs, atm, tel, projector=None):
+    """
+    Record the open loop phase screens for a given telescope, natural guide star, and atmosphere.
+
+    Parameters
+    ----------
+    ngs : Source
+        The natural guide star.
+    atm : Atmosphere
+        The atmosphere.
+    tel : Telescope
+        The telescope.
+
+    Returns
+    -------
+    open_loop_phase_screens : np.ndarray
+        The open loop phase screens.
+
+    """
+
+    n_iter = 100  # number of iterations
+
+    open_loop_phase_screens = np.zeros([tel.OPD.shape[0], tel.OPD.shape[1]] + [n_iter])
+
+    atm.initializeAtmosphere(tel)
+
+    for k in tqdm(range(n_iter)):
+
+        atm.update()
+
+        ngs * tel
+
+        open_loop_phase_screens[:, :, k] = tel.OPD
+
+    return open_loop_phase_screens
 
 
 def close_the_loop(

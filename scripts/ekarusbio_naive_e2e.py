@@ -83,7 +83,7 @@ n_photons_per_controlled_mode = 4
 
 # ------------------ ATMOSPHERE ----------------- #
 
-r0 = 0.2  # [m] value of r0 at 500 nm
+r0 = 0.3  # [m] value of r0 at 500 nm
 external_scale = 30  # [m] value of L0 in the visibile
 fractional_r0 = [0.45, 0.1, 0.1, 0.25, 0.1]  # Cn2 profile (percentage)
 wind_speed = [5, 4, 8, 10, 2]  # [m.s-1] wind speed of layers

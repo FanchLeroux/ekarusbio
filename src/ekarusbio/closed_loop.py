@@ -41,7 +41,6 @@ def close_the_loop(
     seed=0,
     polc=False,
     interaction_matrix=None,
-    calibration_basis=None,
     compute_strehl=True,
     compute_optical_gains=False,
     save_telemetry=False,
@@ -59,7 +58,7 @@ def close_the_loop(
     atm : Atmosphere
         The atmosphere.
     dm : DeformableMirror
-        The deformable mirror. Should be a modal DM.
+        The deformable mirror. Should be a modal DM containing the calibration basis
     wfs : Pyramid | BioEdge
         The wavefront sensor.
     reconstructor : np.ndarray
@@ -80,8 +79,6 @@ def close_the_loop(
         Whether to use POLC. Default is False.
     interaction_matrix : np.ndarray, optional
         The interaction matrix. Default is None.
-    calibration_basis : np.ndarray, optional
-        The calibration basis scaled by the calibration stroke in radians. Should be a 3D array with shape (n_pixels, n_pixels, n_modes). Default is None.
     compute_strehl : bool, optional
         Whether to compute the Strehl ratio. Default is True.
     compute_optical_gains : bool, optional
@@ -113,16 +110,17 @@ def close_the_loop(
         strehl = np.zeros(n_iter)  # Strehl Ratio
 
     if compute_optical_gains:
-        if calibration_basis is None:
-            raise ValueError(
-                "Calibration basis must be provided for optical gain computation. Please provide it as an argument."
-            )
         wfs.focal_plane_camera.resolution = wfs.resolution
-        calibration_basis_m = calibration_basis * ngs.wavelength / (2 * np.pi)
-        gsc = GainSensingCamera(mask=wfs.mask, basis=calibration_basis_m)
-        ngs**tel * wfs * wfs.focal_plane_camera  # reset OPD and propagate a flat wavefront towards the wavefront sensor and the wavefront sensor focal plane camera
+        gsc = GainSensingCamera(
+            mask=wfs.mask,
+            basis=dm.modes.reshape(
+                (tel.pupil.shape[0], tel.pupil.shape[1], dm.modes.shape[-1])
+            ),
+        )
+        ngs**tel * wfs  # reset OPD and propagate a flat wavefront towards the wavefront sensor
+        wfs * wfs.focal_plane_camera  # propagate to the focal plane camera
         wfs.focal_plane_camera * gsc  # calibrate the gsc (first mul of wavefront sensor focal plane camera and GSC is for calibration)
-        optical_gains = np.zeros([calibration_basis_m.shape[-1], n_iter])
+        optical_gains = np.zeros([dm.modes.shape[-1], n_iter])
 
     if save_telemetry:
         dm_coefs = np.zeros([dm.nValidAct, n_iter])
@@ -143,7 +141,7 @@ def close_the_loop(
 
     atm.initializeAtmosphere(tel)
     atm.generateNewPhaseScreen(seed=seed)
-    # tel + atm
+    tel + atm
 
     dm.coefs = 0
 
@@ -154,13 +152,13 @@ def close_the_loop(
     for k in tqdm(range(n_iter)):
 
         atm.update()
-        ngs**atm * tel
+
         total[k] = np.std(tel.OPD[np.where(tel.pupil > 0)]) * 1e9  # [nm]
 
         if save_telemetry:
             turbulence_phase_screens[:, :, k] = tel.OPD
 
-        tel * dm * wfs
+        ngs * tel * dm * wfs
 
         buffer_wfs_measure = np.roll(buffer_wfs_measure, -1, axis=1)
         buffer_wfs_measure[:, -1] = wfs.signal

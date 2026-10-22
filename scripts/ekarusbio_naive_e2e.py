@@ -598,10 +598,6 @@ closed_loop_result_pyramid = close_the_loop(
     seed=seed,
     polc=False,
     interaction_matrix=None,
-    calibration_basis=stroke_rad
-    * calibration_basis.reshape(
-        (tel.pupil.shape[0], tel.pupil.shape[1], calibration_basis.shape[1])
-    ),
     compute_strehl=compute_strehl,
     compute_optical_gains=compute_optical_gains,
     save_telemetry=save_telemetry,

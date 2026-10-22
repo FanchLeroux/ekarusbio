@@ -79,11 +79,11 @@ fig_dir = config.root_dir / "outputs"
 
 # phot.R4 = [0.670e-6, 0.300e-6, 7.66e12]
 optical_band = "R4"  # optical band of the guide star
-n_photons_per_controlled_mode = 100
+n_photons_per_controlled_mode = 4
 
 # ------------------ ATMOSPHERE ----------------- #
 
-r0 = 0.1  # [m] value of r0 at 500 nm
+r0 = 0.2  # [m] value of r0 at 500 nm
 external_scale = 30  # [m] value of L0 in the visibile
 fractional_r0 = [0.45, 0.1, 0.1, 0.25, 0.1]  # Cn2 profile (percentage)
 wind_speed = [5, 4, 8, 10, 2]  # [m.s-1] wind speed of layers
@@ -197,8 +197,6 @@ bioedge = BioEdge(
     polarization_leakage_factor=polarization_leakage_factor,
 )
 
-# %%
-
 pyramid = Pyramid(
     nSubap=n_subaperture,
     telescope=tel,
@@ -206,27 +204,6 @@ pyramid = Pyramid(
     lightRatio=light_threshold,
     postProcessing="fullFrame",
 )
-
-#  display the Pyramid pupils
-plt.figure()
-plt.imshow(pyramid.cam.frame)
-
-#  display the Pyramid signals
-plt.figure()
-plt.imshow(pyramid.signal_2D)
-plt.colorbar()
-
-plt.figure()
-plt.imshow(pyramid.referenceSignal_2D)
-plt.colorbar()
-
-
-#  propagate to the focal plane camera to see the modulation path
-pyramid * pyramid.focal_plane_camera
-plt.figure()
-plt.imshow(pyramid.focal_plane_camera.frame)
-
-# %%
 
 # % --------------------- # photons ------------------------------ #
 
@@ -480,81 +457,9 @@ print(
     f"Analytical Strehl ratio pyramid: {strehl_analytical_pyramid:.3f}"
 )
 
-# %% temp - test OG pyramid
-
-modal_basis_flat = calibration_basis[tel.pupil.reshape(-1), :n_controlled_modes]
-modal_projector = np.linalg.pinv(modal_basis_flat)
-
-# %%
-
-seed = 1  # seed for atmosphere computation
-
-atm.initializeAtmosphere(tel)
-atm.generateNewPhaseScreen(seed=seed)
-
-atm.update()
-ngs**atm * tel
-
-plt.figure()
-plt.imshow(tel.OPD)
-plt.colorbar()
-plt.title("Turbulence Phase Screen")
-
-print(
-    f"Turbulence phase screen std: {np.std(tel.OPD[np.where(tel.pupil > 0)]) * 1e9:.3f} nm"
-)
-
-turbulence_flat = tel.OPD[tel.pupil]
-residual_turbulence_flat = (
-    turbulence_flat - ((modal_projector @ turbulence_flat).T @ modal_basis_flat.T).T
-)
-residual_trubulence = np.zeros_like(tel.OPD)
-residual_trubulence[tel.pupil] = residual_turbulence_flat
-
-plt.figure()
-plt.imshow(residual_trubulence)
-plt.colorbar()
-plt.title("Residual turbulence Phase Screen")
-
-print(
-    f"Residual turbulence phase screen std: {np.std(residual_turbulence_flat) * 1e9:.3f} nm"
-)
-
-# %%
-
-from OOPAO.GainSensingCamera import GainSensingCamera
-
-pyramid.focal_plane_camera.resolution = pyramid.resolution
-gsc = GainSensingCamera(
-    mask=pyramid.mask,
-    basis=stroke_m
-    * calibration_basis.reshape(
-        (tel.pupil.shape[0], tel.pupil.shape[1], calibration_basis.shape[1])
-    ),
-)
-
-ngs**tel * pyramid  # reset OPD and propagate a flat wavefront towards the wavefront sensor
-pyramid * pyramid.focal_plane_camera  # propagate to the focal plane camera
-pyramid.focal_plane_camera * gsc  # calibrate the gsc (first mul of wavefront sensor focal plane camera and GSC is for calibration)
-
-# %%
-
-from OOPAO.OPD_map import OPD_map
-
-fitting_OPD = OPD_map(residual_trubulence)
-
-ngs**tel * fitting_OPD * pyramid
-pyramid * pyramid.focal_plane_camera
-
-pyramid.focal_plane_camera * gsc
-
-plt.figure()
-plt.plot(gsc.og)
-
-plt.figure()
-plt.imshow(pyramid.focal_plane_camera.frame)
-
 # %% Close the loop - LSE
+
+# bioedge
 
 seed = 1  # seed for atmosphere computation
 
@@ -581,7 +486,7 @@ closed_loop_result_bioedge = close_the_loop(
     save_psf=save_psf,
 )
 
-# %%
+# pyramid
 
 closed_loop_result_pyramid = close_the_loop(
     ngs,

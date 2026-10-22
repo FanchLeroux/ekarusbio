@@ -120,7 +120,7 @@ def close_the_loop(
         wfs.focal_plane_camera.resolution = wfs.resolution
         calibration_basis_m = calibration_basis * ngs.wavelength / (2 * np.pi)
         gsc = GainSensingCamera(mask=wfs.mask, basis=calibration_basis_m)
-        ngs**tel * wfs * wfs.focal_plane_camera  # reset OPD and propagate towards the wavefront sensor and the wavefront sensor focal plane camera
+        ngs**tel * wfs * wfs.focal_plane_camera  # reset OPD and propagate a flat wavefront towards the wavefront sensor and the wavefront sensor focal plane camera
         wfs.focal_plane_camera * gsc  # calibrate the gsc (first mul of wavefront sensor focal plane camera and GSC is for calibration)
         optical_gains = np.zeros([calibration_basis_m.shape[-1], n_iter])
 
@@ -143,23 +143,24 @@ def close_the_loop(
 
     atm.initializeAtmosphere(tel)
     atm.generateNewPhaseScreen(seed=seed)
-    tel + atm
+    # tel + atm
 
     dm.coefs = 0
 
-    ngs * tel * dm * wfs
+    ngs**atm * tel * dm * wfs
 
     # close the loop
 
     for k in tqdm(range(n_iter)):
 
         atm.update()
+        ngs**atm * tel
         total[k] = np.std(tel.OPD[np.where(tel.pupil > 0)]) * 1e9  # [nm]
 
         if save_telemetry:
             turbulence_phase_screens[:, :, k] = tel.OPD
 
-        ngs * tel * dm * wfs
+        tel * dm * wfs
 
         buffer_wfs_measure = np.roll(buffer_wfs_measure, -1, axis=1)
         buffer_wfs_measure[:, -1] = wfs.signal

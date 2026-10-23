@@ -96,7 +96,7 @@ altitude = [0, 1000, 5000, 10000, 12000]  # [m] altitude of layers
 diameter = 1.8  # [m] telescope diameter
 n_subaperture = 41  # number of WFS subaperture along the telescope diameter
 n_pixel_per_subaperture = (
-    8  # [pixel] sampling of the WFS subapertures in telescope pupil space
+    4  # [pixel] sampling of the WFS subapertures in telescope pupil space
 )
 resolution = (
     n_subaperture * n_pixel_per_subaperture
@@ -110,7 +110,7 @@ n_actuator = 24  # number of actuators. Total number of actuators on EKARUSDM is
 # ----------------------- WFS ---------------------- #
 
 # Bi-O edge
-grey_width = 5  # 7.96 / 2  # [lambda/D] Bi-O edge half grey width. Computed at 670 nm for F/# = 45
+grey_width = 3  # 7.96 / 2  # [lambda/D] Bi-O edge half grey width. Computed at 670 nm for F/# = 45
 polarization_leakage_factor = 0.0  # polarization leakage factor for the Bi-O edge
 
 # pyramid
@@ -241,7 +241,9 @@ ngs**tel  # reset
 influence_functions = dm.modes
 calibration_basis = influence_functions @ m2c
 calibration_basis = tel.pupil.reshape(-1, 1) * calibration_basis  # apply pupil mask
-
+calibration_basis = calibration_basis / calibration_basis[tel.pupil.reshape(-1)].std(
+    axis=0
+)
 # %% -------------------------   Modal  DM   ----------------------------------
 
 modal_dm = DeformableMirror(tel, nSubap=n_actuator - 1, modes=calibration_basis)
@@ -251,7 +253,7 @@ plt.plot(modal_dm.modes[tel.pupil.reshape(-1)].std(axis=0))
 plt.title("modal basis std")
 plt.xlabel("# KL mode")
 plt.ylabel("Standard deviation")
-plt.ylim(0.999, 1.001)
+# plt.ylim(0.999, 1.001)
 plt.show()
 
 # %% calibration
@@ -267,6 +269,7 @@ calib_bioedge = InteractionMatrix(
     stroke=stroke_m,
     single_pass=single_pass,
     noise="off",
+    invert=False,
     display=True,
 )
 interaction_matrix_bioedge = calib_bioedge.D
@@ -280,16 +283,17 @@ calib_pyramid = InteractionMatrix(
     stroke=stroke_m,
     single_pass=single_pass,
     noise="off",
+    invert=False,
     display=True,
 )
 interaction_matrix_pyramid = calib_pyramid.D
 
-print(
-    f"Interaction matrix bioedge shape: {interaction_matrix_bioedge.shape}\n"
-    f"Interaction matrix bioedge rank: {np.linalg.matrix_rank(interaction_matrix_bioedge)}\n"
-    f"Interaction matrix pyramid shape: {interaction_matrix_pyramid.shape}\n"
-    f"Interaction matrix pyramid rank: {np.linalg.matrix_rank(interaction_matrix_pyramid)}"
-)
+# print(
+#     f"Interaction matrix bioedge shape: {interaction_matrix_bioedge.shape}\n"
+#     f"Interaction matrix bioedge rank: {np.linalg.matrix_rank(interaction_matrix_bioedge)}\n"
+#     f"Interaction matrix pyramid shape: {interaction_matrix_pyramid.shape}\n"
+#     f"Interaction matrix pyramid rank: {np.linalg.matrix_rank(interaction_matrix_pyramid)}"
+# )
 
 # %% sensitivity analysis - sanity check and allows low order mode cutoff identification
 
@@ -564,42 +568,6 @@ long_exposure_psf_lse_pyramid = np.sum(
 
 # %% plots
 
-# og
-plt.figure()
-plt.plot(optical_gains_lse_pyramid[:, 25:].mean(axis=1), label="pyramid")
-plt.plot(optical_gains_lse_bioedge[:, 25:].mean(axis=1), label="bioedge")
-plt.xlabel("# KL mode")
-plt.ylabel("mean optical gains")
-plt.title(f"r0 = {r0*100:.1f} cm")
-plt.legend()
-
-
-# noise propagation
-plt.figure()
-plt.plot(
-    np.diag(
-        (1 / n_photons_per_frame)
-        * reconstructor_lse_pyramid_rad_normalized
-        @ np.diag(pyramid.referenceSignal)
-        @ reconstructor_lse_pyramid_rad_normalized.T
-    ),
-    label="pyramid",
-)
-plt.plot(
-    np.diag(
-        (1 / n_photons_per_frame)
-        * reconstructor_lse_bioedge_rad_normalized
-        @ np.diag(bioedge.referenceSignal)
-        @ reconstructor_lse_bioedge_rad_normalized.T
-    ),
-    label="bioedge",
-)
-plt.yscale("log")
-plt.title("Photon noise propagation coefficients")
-plt.xlabel("# KL mode")
-plt.ylabel("Photon noise propagation coefficient [rad^2]")
-plt.legend()
-
 # sensitivity
 
 fig_sensitivity, ax_sensitivity = plt.subplots()
@@ -626,6 +594,42 @@ ax_og_sensitivity.set_title(
     f"r0 = {r0*100:.1f} cm - optical gains weighted sensitivity"
 )
 ax_og_sensitivity.legend(loc="lower right")
+
+
+# og
+plt.figure()
+plt.plot(optical_gains_lse_pyramid[:, 25:].mean(axis=1), label="pyramid")
+plt.plot(optical_gains_lse_bioedge[:, 25:].mean(axis=1), label="bioedge")
+plt.xlabel("# KL mode")
+plt.ylabel("mean optical gains")
+plt.title(f"r0 = {r0*100:.1f} cm")
+plt.legend()
+
+# noise propagation
+plt.figure()
+plt.plot(
+    np.diag(
+        (1 / n_photons_per_frame)
+        * reconstructor_lse_pyramid_rad_normalized
+        @ np.diag(pyramid.referenceSignal)
+        @ reconstructor_lse_pyramid_rad_normalized.T
+    ),
+    label="pyramid",
+)
+plt.plot(
+    np.diag(
+        (1 / n_photons_per_frame)
+        * reconstructor_lse_bioedge_rad_normalized
+        @ np.diag(bioedge.referenceSignal)
+        @ reconstructor_lse_bioedge_rad_normalized.T
+    ),
+    label="bioedge",
+)
+plt.yscale("log")
+plt.title("Photon noise propagation coefficients")
+plt.xlabel("# KL mode")
+plt.ylabel("Photon noise propagation coefficient [rad^2]")
+plt.legend()
 
 # residuals
 plt.figure()

@@ -189,7 +189,6 @@ def close_the_loop(
                 "Science camera must be provided for PSF saving. Please provide it as an argument."
             )
         ngs**tel * science_camera  # reset OPD and propagate a flat wavefront towards the science camera
-        print("Science camera resolution: ", science_camera.frame.shape)
         short_exposure_psf = np.zeros(
             [science_camera.frame.shape[0], science_camera.frame.shape[1]] + [n_iter]
         )

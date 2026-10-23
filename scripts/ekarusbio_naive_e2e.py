@@ -209,7 +209,7 @@ pyramid = Pyramid(
 # % ----------------------- Science camera ---------------------------- #
 
 science_camera = Detector(
-    nRes=tel.resolution, psf_sampling=4, integrationTime=1 / loop_frequency
+    nRes=tel.resolution * 4, psf_sampling=4, integrationTime=1 / loop_frequency
 )
 
 # %% Define flux
@@ -310,14 +310,13 @@ photon_noise_sensitivity_pyramid = compute_photon_noise_sensitivity(
     interaction_matrix_pyramid_rad_normalized_pyramid, reference_intensities_pyramid
 )
 
-fig_sensitivity_bioedge, ax_sensitivity_bioedge = plt.subplots()
-ax_sensitivity_bioedge.plot(photon_noise_sensitivity_bioedge, label="bioedge")
-ax_sensitivity_bioedge.plot(photon_noise_sensitivity_pyramid, label="pyramid")
-ax_sensitivity_bioedge.axhline(y=2**0.5, color="k", linestyle="--", label=r"$\sqrt{2}$")
-ax_sensitivity_bioedge.set_xlabel("# KL mode")
-ax_sensitivity_bioedge.set_ylabel(r"$S_{ph}$")
-
-ax_sensitivity_bioedge.legend(loc="lower right")
+fig_sensitivity, ax_sensitivity = plt.subplots()
+ax_sensitivity.plot(photon_noise_sensitivity_bioedge, label="bioedge")
+ax_sensitivity.plot(photon_noise_sensitivity_pyramid, label="pyramid")
+ax_sensitivity.axhline(y=2**0.5, color="k", linestyle="--", label=r"$\sqrt{2}$")
+ax_sensitivity.set_xlabel("# KL mode")
+ax_sensitivity.set_ylabel(r"$S_{ph}$")
+ax_sensitivity.legend(loc="lower right")
 
 # %% compute reconstructor with truncated SVD weightened by the phase covariance matrix
 
@@ -489,11 +488,14 @@ closed_loop_result_bioedge = close_the_loop(
     read_out_noise=detector_read_out_noise,
     seed=seed,
     polc=False,
+    compute_strehl=compute_strehl,
+    compute_optical_gains=compute_optical_gains,
     save_telemetry=save_telemetry,
     save_psf=save_psf,
+    science_camera=science_camera,
 )
 
-# pyramid
+# %% pyramid
 
 closed_loop_result_pyramid = close_the_loop(
     ngs,
@@ -514,9 +516,10 @@ closed_loop_result_pyramid = close_the_loop(
     compute_optical_gains=compute_optical_gains,
     save_telemetry=save_telemetry,
     save_psf=save_psf,
+    science_camera=science_camera,
 )
 
-# Unpack closed loop results
+# %% Unpack closed loop results
 
 total_lse_bioedge = closed_loop_result_bioedge.total
 residual_lse_bioedge = closed_loop_result_bioedge.residual
@@ -529,7 +532,7 @@ if compute_strehl:
     strehl_lse_pyramid = closed_loop_result_pyramid.strehl
 
 if compute_optical_gains:
-    # optical_gains_lse_bioedge = closed_loop_result_bioedge.optical_gains
+    optical_gains_lse_bioedge = closed_loop_result_bioedge.optical_gains
     optical_gains_lse_pyramid = closed_loop_result_pyramid.optical_gains
 
 if save_telemetry:
@@ -573,19 +576,34 @@ long_exposure_psf_lse_pyramid = np.sum(
 plt.figure()
 plt.plot(optical_gains_lse_pyramid.mean(axis=1))
 
+# bioedge og
+plt.figure()
+plt.plot(optical_gains_lse_bioedge.mean(axis=1))
+
 # noise propagation
 plt.figure()
 plt.plot(
-    np.diag(reconstructor_lse_bioedge @ reconstructor_lse_bioedge.T),
+    np.diag(
+        (1 / n_photons_per_frame)
+        * reconstructor_lse_bioedge_rad_normalized
+        @ np.diag(bioedge.referenceSignal)
+        @ reconstructor_lse_bioedge_rad_normalized.T
+    ),
     label="bioedge",
 )
 plt.plot(
-    np.diag(reconstructor_lse_pyramid @ reconstructor_lse_pyramid.T),
+    np.diag(
+        (1 / n_photons_per_frame)
+        * reconstructor_lse_pyramid_rad_normalized
+        @ np.diag(pyramid.referenceSignal)
+        @ reconstructor_lse_pyramid_rad_normalized.T
+    ),
     label="pyramid",
 )
 plt.yscale("log")
-plt.title("modal uniform noise propagation")
+plt.title("Photon noise propagation coefficients")
 plt.xlabel("# KL mode")
+plt.ylabel("Photon noise propagation coefficient [rad^2]")
 plt.legend()
 
 # residuals
@@ -627,7 +645,7 @@ plt.savefig(fig_dir / "strehls.png", bbox_inches="tight")
 # long exposure PSF
 plt.figure()
 plt.imshow(
-    crop_array(np.log(long_exposure_psf_lse_bioedge), 100),
+    np.log(long_exposure_psf_lse_bioedge),
     norm="linear",
     cmap="inferno",
 )
@@ -637,7 +655,7 @@ plt.title(
 
 plt.figure()
 plt.imshow(
-    crop_array(np.log(long_exposure_psf_lse_pyramid), 100),
+    np.log(long_exposure_psf_lse_pyramid),
     norm="linear",
     cmap="inferno",
 )

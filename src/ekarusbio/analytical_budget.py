@@ -113,7 +113,7 @@ def compute_photon_noise(n_photons, reconstructor, reference_intensities):
     n_photons : float
         The number of photons per frame.
     reconstructor : np.ndarray
-        The reconstructor marrix [rad].
+        The reconstructor matrix [rad].
     reference_intensities : np.ndarray
         The reference intensities I(phi=0)/N_ph.
 

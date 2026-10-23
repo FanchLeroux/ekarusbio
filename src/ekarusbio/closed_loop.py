@@ -32,6 +32,7 @@ class ClosedLoopResult:
     wfs_frames: np.ndarray = None
     wfs_signals: np.ndarray = None
     short_exposure_psf: np.ndarray = None
+    gsc: GainSensingCamera = None
 
 
 # tbd
@@ -80,7 +81,6 @@ def close_the_loop(
     wfs: Pyramid | BioEdge,
     reconstructor,
     loop_gain,
-    science_camera: Detector = None,
     n_iter=100,
     delay=1,
     photon_noise=False,
@@ -92,6 +92,7 @@ def close_the_loop(
     compute_optical_gains=False,
     save_telemetry=False,
     save_psf=False,
+    science_camera: Detector = None,
 ):
     """
     Close the loop for a given telescope, natural guide star, atmosphere, deformable mirror, and wavefront sensor.
@@ -183,8 +184,15 @@ def close_the_loop(
         wfs_signals = np.zeros([wfs.signal.shape[0]] + [n_iter])
 
     if save_psf:
-        tel.computePSF()  # just to get the shape
-        short_exposure_psf = np.zeros([tel.PSF.shape[0], tel.PSF.shape[1]] + [n_iter])
+        if science_camera is None:
+            raise ValueError(
+                "Science camera must be provided for PSF saving. Please provide it as an argument."
+            )
+        ngs**tel * science_camera  # reset OPD and propagate a flat wavefront towards the science camera
+        print("Science camera resolution: ", science_camera.frame.shape)
+        short_exposure_psf = np.zeros(
+            [science_camera.frame.shape[0], science_camera.frame.shape[1]] + [n_iter]
+        )
 
     atm.initializeAtmosphere(tel)
     atm.generateNewPhaseScreen(seed=seed)
@@ -198,14 +206,16 @@ def close_the_loop(
 
     for k in tqdm(range(n_iter)):
 
-        atm.update()
+        atm.update()  # update the atmosphere
 
         total[k] = np.std(tel.OPD[np.where(tel.pupil > 0)]) * 1e9  # [nm]
 
         if save_telemetry:
             turbulence_phase_screens[:, :, k] = tel.OPD
 
-        ngs * tel * dm * wfs
+        ngs**atm * tel * dm * wfs  # propagation through the wfs branch
+
+        residual[k] = np.std(tel.OPD[np.where(tel.pupil > 0)]) * 1e9  # [nm]
 
         buffer_wfs_measure = np.roll(buffer_wfs_measure, -1, axis=1)
         buffer_wfs_measure[:, -1] = wfs.signal
@@ -222,7 +232,6 @@ def close_the_loop(
             wfs_frames[:, :, k] = wfs.cam.frame
             wfs_signals[:, k] = buffer_wfs_measure[:, 0]
 
-        residual[k] = np.std(tel.OPD[np.where(tel.pupil > 0)]) * 1e9  # [nm]
         if compute_strehl:
             strehl[k] = (
                 np.abs(
@@ -256,8 +265,8 @@ def close_the_loop(
 
         if save_psf:
 
-            tel.computePSF()
-            short_exposure_psf[:, :, k] = tel.PSF
+            ngs**atm * tel * dm * science_camera  # propagation through the science branch
+            short_exposure_psf[:, :, k] = science_camera.frame
 
     # wrap results in a dataclass
     closed_loop_result = ClosedLoopResult(
@@ -270,6 +279,7 @@ def close_the_loop(
 
     if compute_optical_gains:
         closed_loop_result.optical_gains = optical_gains
+        closed_loop_result.gsc = gsc
 
     if save_telemetry:
         closed_loop_result.dm_coefs = dm_coefs

@@ -10,6 +10,7 @@ from OOPAO.DeformableMirror import DeformableMirror
 from OOPAO.Pyramid import Pyramid
 from OOPAO.BioEdge import BioEdge
 from OOPAO.GainSensingCamera import GainSensingCamera
+from OOPAO.Detector import Detector
 
 
 # tbd
@@ -79,6 +80,7 @@ def close_the_loop(
     wfs: Pyramid | BioEdge,
     reconstructor,
     loop_gain,
+    science_camera: Detector = None,
     n_iter=100,
     delay=1,
     photon_noise=False,

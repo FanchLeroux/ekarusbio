@@ -16,6 +16,7 @@ from OOPAO.Source import Source
 from OOPAO.DeformableMirror import DeformableMirror
 from OOPAO.Pyramid import Pyramid
 from OOPAO.BioEdge import BioEdge
+from OOPAO.Detector import Detector
 from OOPAO.calibration.InteractionMatrix import InteractionMatrix
 
 from ekarusbio.pattern import get_circular_pupil
@@ -205,7 +206,13 @@ pyramid = Pyramid(
     postProcessing="fullFrame",
 )
 
-# % --------------------- # photons ------------------------------ #
+# % ----------------------- Science camera ---------------------------- #
+
+science_camera = Detector(
+    nRes=tel.resolution, psf_sampling=4, integrationTime=1 / loop_frequency
+)
+
+# %% Define flux
 
 telescope_surface = tel.pupil.sum() * tel.pixelSize * tel.pixelSize
 n_measurement_points = int(np.sum(bioedge.validSignal) / 4)

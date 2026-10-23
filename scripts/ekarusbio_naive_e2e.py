@@ -84,7 +84,7 @@ n_photons_per_controlled_mode = 4
 
 # ------------------ ATMOSPHERE ----------------- #
 
-r0 = 0.3  # [m] value of r0 at 500 nm
+r0 = 0.05  # [m] value of r0 at 500 nm
 external_scale = 30  # [m] value of L0 in the visibile
 fractional_r0 = [0.45, 0.1, 0.1, 0.25, 0.1]  # Cn2 profile (percentage)
 wind_speed = [5, 4, 8, 10, 2]  # [m.s-1] wind speed of layers
@@ -96,7 +96,7 @@ altitude = [0, 1000, 5000, 10000, 12000]  # [m] altitude of layers
 diameter = 1.8  # [m] telescope diameter
 n_subaperture = 41  # number of WFS subaperture along the telescope diameter
 n_pixel_per_subaperture = (
-    4  # [pixel] sampling of the WFS subapertures in telescope pupil space
+    8  # [pixel] sampling of the WFS subapertures in telescope pupil space
 )
 resolution = (
     n_subaperture * n_pixel_per_subaperture
@@ -209,7 +209,7 @@ pyramid = Pyramid(
 # % ----------------------- Science camera ---------------------------- #
 
 science_camera = Detector(
-    nRes=tel.resolution * 4, psf_sampling=4, integrationTime=1 / loop_frequency
+    nRes=tel.resolution, psf_sampling=4, integrationTime=1 / loop_frequency
 )
 
 # %% Define flux
@@ -309,14 +309,6 @@ reference_intensities_pyramid = pyramid.referenceSignal
 photon_noise_sensitivity_pyramid = compute_photon_noise_sensitivity(
     interaction_matrix_pyramid_rad_normalized_pyramid, reference_intensities_pyramid
 )
-
-fig_sensitivity, ax_sensitivity = plt.subplots()
-ax_sensitivity.plot(photon_noise_sensitivity_bioedge, label="bioedge")
-ax_sensitivity.plot(photon_noise_sensitivity_pyramid, label="pyramid")
-ax_sensitivity.axhline(y=2**0.5, color="k", linestyle="--", label=r"$\sqrt{2}$")
-ax_sensitivity.set_xlabel("# KL mode")
-ax_sensitivity.set_ylabel(r"$S_{ph}$")
-ax_sensitivity.legend(loc="lower right")
 
 # %% compute reconstructor with truncated SVD weightened by the phase covariance matrix
 
@@ -572,25 +564,18 @@ long_exposure_psf_lse_pyramid = np.sum(
 
 # %% plots
 
-# pyramid og
+# og
 plt.figure()
-plt.plot(optical_gains_lse_pyramid.mean(axis=1))
+plt.plot(optical_gains_lse_pyramid[:, 25:].mean(axis=1), label="pyramid")
+plt.plot(optical_gains_lse_bioedge[:, 25:].mean(axis=1), label="bioedge")
+plt.xlabel("# KL mode")
+plt.ylabel("mean optical gains")
+plt.title(f"r0 = {r0*100:.1f} cm")
+plt.legend()
 
-# bioedge og
-plt.figure()
-plt.plot(optical_gains_lse_bioedge.mean(axis=1))
 
 # noise propagation
 plt.figure()
-plt.plot(
-    np.diag(
-        (1 / n_photons_per_frame)
-        * reconstructor_lse_bioedge_rad_normalized
-        @ np.diag(bioedge.referenceSignal)
-        @ reconstructor_lse_bioedge_rad_normalized.T
-    ),
-    label="bioedge",
-)
 plt.plot(
     np.diag(
         (1 / n_photons_per_frame)
@@ -600,11 +585,47 @@ plt.plot(
     ),
     label="pyramid",
 )
+plt.plot(
+    np.diag(
+        (1 / n_photons_per_frame)
+        * reconstructor_lse_bioedge_rad_normalized
+        @ np.diag(bioedge.referenceSignal)
+        @ reconstructor_lse_bioedge_rad_normalized.T
+    ),
+    label="bioedge",
+)
 plt.yscale("log")
 plt.title("Photon noise propagation coefficients")
 plt.xlabel("# KL mode")
 plt.ylabel("Photon noise propagation coefficient [rad^2]")
 plt.legend()
+
+# sensitivity
+
+fig_sensitivity, ax_sensitivity = plt.subplots()
+ax_sensitivity.plot(photon_noise_sensitivity_pyramid, label="pyramid")
+ax_sensitivity.plot(photon_noise_sensitivity_bioedge, label="bioedge")
+ax_sensitivity.axhline(y=2**0.5, color="k", linestyle="--", label=r"$\sqrt{2}$")
+ax_sensitivity.set_xlabel("# KL mode")
+ax_sensitivity.set_ylabel(r"$S_{ph}$")
+ax_sensitivity.legend(loc="lower right")
+
+fig_og_sensitivity, ax_og_sensitivity = plt.subplots()
+ax_og_sensitivity.plot(
+    photon_noise_sensitivity_pyramid * optical_gains_lse_pyramid[:, 25:].mean(axis=1),
+    label="pyramid",
+)
+ax_og_sensitivity.plot(
+    photon_noise_sensitivity_bioedge * optical_gains_lse_bioedge[:, 25:].mean(axis=1),
+    label="bioedge",
+)
+ax_og_sensitivity.axhline(y=2**0.5, color="k", linestyle="--", label=r"$\sqrt{2}$")
+ax_og_sensitivity.set_xlabel("# KL mode")
+ax_og_sensitivity.set_ylabel(r"$S_{ph}$")
+ax_og_sensitivity.set_title(
+    f"r0 = {r0*100:.1f} cm - optical gains weighted sensitivity"
+)
+ax_og_sensitivity.legend(loc="lower right")
 
 # residuals
 plt.figure()

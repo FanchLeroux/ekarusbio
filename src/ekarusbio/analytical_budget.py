@@ -101,7 +101,9 @@ def compute_readout_noise(n_photons, reconstructor, readout_noise):
     var_readout_noise = (readout_noise / n_photons) ** 2 * np.trace(
         reconstructor @ reconstructor.T
     )  # [rad^2]
-    return var_readout_noise
+    return (
+        0.25 * var_readout_noise
+    )  # term 0.25 account for filtering by the noise transfert function (lol).
 
 
 def compute_photon_noise(n_photons, reconstructor, reference_intensities):

@@ -84,7 +84,7 @@ n_photons_per_controlled_mode = 4
 
 # ------------------ ATMOSPHERE ----------------- #
 
-r0 = 0.03  # [m] value of r0 at 500 nm
+r0 = 0.05  # [m] value of r0 at 500 nm
 external_scale = 30  # [m] value of L0 in the visibile
 fractional_r0 = [0.45, 0.1, 0.1, 0.25, 0.1]  # Cn2 profile (percentage)
 wind_speed = [5, 4, 8, 10, 2]  # [m.s-1] wind speed of layers
@@ -110,8 +110,10 @@ n_actuator = 24  # number of actuators. Total number of actuators on EKARUSDM is
 # ----------------------- WFS ---------------------- #
 
 # Bi-O edge
-grey_width = 3  # 7.96 / 2  # [lambda/D] Bi-O edge half grey width. Computed at 670 nm for F/# = 45
-polarization_leakage_factor = 0.0  # polarization leakage factor for the Bi-O edge
+grey_width = (
+    7.96 / 2
+)  # [lambda/D] Bi-O edge half grey width. Computed at 670 nm for F/# = 45
+polarization_leakage_factor = 0.05  # polarization leakage factor for the Bi-O edge
 
 # pyramid
 modulation = grey_width  # [lambda/D] modulation radius
@@ -133,7 +135,7 @@ single_pass = False  # push-pull or push only for the calibration
 
 # -------------------- LOOP ----------------------- #
 
-loop_integrator_gain = 0.8
+loop_integrator_gain = 0.5
 loop_frequency = 1000  # [Hz]
 loop_delay = 2  # [frame]
 n_controlled_modes = int(

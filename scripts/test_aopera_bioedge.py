@@ -301,7 +301,7 @@ axes[1].set_title("Pyramid")
 axes[1].set_xlim(-0.1, x_lim)
 
 # photon noise
-fig, axes = plt.subplots(1, 2, figsize=(10, 0.5 * 10), constrained_layout=True)
+fig, axes = plt.subplots(1, 2, figsize=(9.5, 0.5 * 9.5), constrained_layout=True)
 
 # bioedge
 axes[0].plot(freq_cartesian_cut, s_ph_bioedge[nx // 2, nx // 2 :], label="Horizontal")

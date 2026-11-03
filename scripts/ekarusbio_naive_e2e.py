@@ -133,7 +133,7 @@ single_pass = False  # push-pull or push only for the calibration
 
 # -------------------- LOOP ----------------------- #
 
-loop_integrator_gain = 0.5
+loop_integrator_gain = 0.8
 loop_frequency = 1000  # [Hz]
 loop_delay = 2  # [frame]
 n_controlled_modes = int(
@@ -634,10 +634,10 @@ plt.legend()
 # residuals
 plt.figure()
 plt.plot(
-    residual_lse_bioedge * 1e-9 * 2 * np.pi / wavelength, label="residual_lse_bioedge"
+    residual_lse_pyramid * 1e-9 * 2 * np.pi / wavelength, label="residual_lse_pyramid"
 )
 plt.plot(
-    residual_lse_pyramid * 1e-9 * 2 * np.pi / wavelength, label="residual_lse_pyramid"
+    residual_lse_bioedge * 1e-9 * 2 * np.pi / wavelength, label="residual_lse_bioedge"
 )
 plt.plot(total_lse_bioedge * 1e-9 * 2 * np.pi / wavelength, label="total_lse")
 plt.axhline(
@@ -654,8 +654,8 @@ plt.savefig(fig_dir / "residuals.png", bbox_inches="tight")
 
 # strehls
 plt.figure()
-plt.plot(strehl_lse_bioedge, label="strehl_lse_bioedge")
 plt.plot(strehl_lse_pyramid, label="strehl_lse_pyramid")
+plt.plot(strehl_lse_bioedge, label="strehl_lse_bioedge")
 plt.axhline(
     y=strehl_analytical_bioedge,
     color="k",

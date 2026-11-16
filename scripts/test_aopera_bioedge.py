@@ -1,5 +1,16 @@
 # %%
 
+import time
+
+import aopera.backend as bk
+
+backend_name = (
+    "gpu"  # "cpu" or "gpu" or "auto" (auto will use GPU if available, otherwise CPU)
+)
+bk.set_backend(backend_name)
+
+tic = time.time()
+
 import matplotlib.pyplot as plt
 
 from aopera.backend import np as xp  # cupy or numpy depending on the backend
@@ -494,3 +505,6 @@ ax.set_xlim(-0.1, x_lim)
 ax.legend(loc="lower right")
 
 # %%
+
+toc = time.time()
+print(f"{backend_name}: Elapsed time: {toc - tic:.2f} seconds")

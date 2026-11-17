@@ -70,7 +70,7 @@ modulation_radius = grey_width / 2  # modulation amplitude in lambda/D
 grey_length = None  # length of the grey area in pixels (None for full mask)
 
 polarization_leakage_factor = (
-    0.05  # polarization leakage (0.0 for no leakage, 1.0 for full leakage)
+    0.00  # polarization leakage (0.0 for no leakage, 1.0 for full leakage)
 )
 
 markersize = 8
@@ -79,7 +79,8 @@ markersize = 8
 
 bioedge_masks = compute_bioedge_masks(
     nx,
-    samp * grey_width,
+    samp,
+    grey_width,
     grey_length=samp * grey_length if grey_length is not None else None,
     polarization_leakage_factor=polarization_leakage_factor,
 )
@@ -152,37 +153,43 @@ psf_current = psf_diff
 
 modulation_path_bioedge = modulation(nx, 0.0, samp)
 
-s_ron_top_left = ffwfs_sensitivity(
-    bioedge_masks[0],
-    modulation_path_bioedge,
-    psf_calib,
-    psf_current,
-)
-s_ron_left_0_right_1 = ffwfs_sensitivity(
-    bioedge_masks[1],
-    modulation_path_bioedge,
-    psf_calib,
-    psf_current,
-)
-s_ron_top_1_bottom_0 = ffwfs_sensitivity(
-    bioedge_masks[2],
-    modulation_path_bioedge,
-    psf_calib,
-    psf_current,
-)
-s_ron_top_0_bottom_1 = ffwfs_sensitivity(
-    bioedge_masks[3],
-    modulation_path_bioedge,
-    psf_calib,
-    psf_current,
+s_ron_bioedge = ffwfs_sensitivity(
+    bioedge_masks, modulation_path_bioedge, psf_calib, psf_current
 )
 
-s_ron_bioedge = (
-    s_ron_top_left**2
-    + s_ron_left_0_right_1**2
-    + s_ron_top_1_bottom_0**2
-    + s_ron_top_0_bottom_1**2
-) ** 0.5
+# %%
+
+# s_ron_top_left = ffwfs_sensitivity(
+#     bioedge_masks[0],
+#     modulation_path_bioedge,
+#     psf_calib,
+#     psf_current,
+# )
+# s_ron_left_0_right_1 = ffwfs_sensitivity(
+#     bioedge_masks[1],
+#     modulation_path_bioedge,
+#     psf_calib,
+#     psf_current,
+# )
+# s_ron_top_1_bottom_0 = ffwfs_sensitivity(
+#     bioedge_masks[2],
+#     modulation_path_bioedge,
+#     psf_calib,
+#     psf_current,
+# )
+# s_ron_top_0_bottom_1 = ffwfs_sensitivity(
+#     bioedge_masks[3],
+#     modulation_path_bioedge,
+#     psf_calib,
+#     psf_current,
+# )
+
+# s_ron_bioedge = (
+#     s_ron_top_left**2
+#     + s_ron_left_0_right_1**2
+#     + s_ron_top_1_bottom_0**2
+#     + s_ron_top_0_bottom_1**2
+# ) ** 0.5
 
 s_ph_bioedge = s_ron_bioedge * xp.sqrt(4)  # Flux is splilled in 4 quadrants
 
@@ -192,7 +199,7 @@ mask_pywfs = pyramid_mask(nx, 4)
 modulation_path_pyramid = modulation(nx, modulation_radius, samp)
 
 s_ron_pyramid = ffwfs_sensitivity(
-    mask_pywfs, modulation_path_pyramid, psf_calib, psf_current
+    [mask_pywfs], modulation_path_pyramid, psf_calib, psf_current
 )
 
 s_ph_pyramid = s_ron_pyramid * xp.sqrt(4)  # Flux is splilled in 4 quadrants

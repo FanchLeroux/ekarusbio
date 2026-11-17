@@ -36,6 +36,10 @@ from aopera.backend import to_cpu
 nx = 1024  # number of pixels for simulation
 samp = 4  # sampling [pixels per lambda/D]
 
+# Apply correction to convolutive model output for low frequencies: If True, sensitivity
+# is modelled as a linear ramp inside the grey area.
+apply_low_order_correction = True
+
 # %%
 
 otf_diff = otf_diffraction(nx, occ=0, samp=samp, return_cpu=False)
@@ -49,7 +53,9 @@ psf_current = psf_diff
 bioedge = BioedgeWFS.from_file(config.root_dir / "inputs" / "bioedge_ekarus.ini")
 print(bioedge)
 
-s_ron = bioedge.sensitivity(samp, psf_calib, psf_current)
+s_ron = bioedge.sensitivity(
+    samp, psf_calib, psf_current, apply_low_order_correction=apply_low_order_correction
+)
 
 s_ph = s_ron * np.sqrt(bioedge.n_masks)
 

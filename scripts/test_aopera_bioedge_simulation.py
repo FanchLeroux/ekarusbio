@@ -55,6 +55,8 @@ s_ph = s_ron * np.sqrt(bioedge.n_masks)
 
 plt.figure()
 plt.imshow(to_cpu(s_ph), cmap="inferno")
+plt.title("Bi-O edge sensitivity")
+plt.colorbar(label=r"$S_{ron}$")
 
 # %% Plot sensitivity curves
 

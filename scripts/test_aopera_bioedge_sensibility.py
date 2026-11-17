@@ -65,7 +65,7 @@ def compute_amplitude_pyramid_mask(nx, n_faces, theta_ref=0):
 
 nx = 1024  # number of pixels for simulation
 samp = 4  # sampling [pixels per lambda/D]
-grey_width = 5.0  # width of the grey area in lambda/D
+grey_width = 7.96  # width of the grey area in lambda/D
 modulation_radius = grey_width / 2  # modulation amplitude in lambda/D
 grey_length = None  # length of the grey area in pixels (None for full mask)
 
@@ -256,16 +256,19 @@ s_ph_amplitude_pyramid = s_ron_amplitude_pyramid * xp.sqrt(
 # %% Plot sensitivity maps
 
 plt.figure()
-plt.imshow(to_cpu(s_ron_bioedge), cmap="hot")
+plt.imshow(to_cpu(s_ron_bioedge), cmap="inferno")
 plt.title("Bi-O edge sensitivity")
+plt.colorbar(label=r"$S_{ron}$")
 
 plt.figure()
-plt.imshow(to_cpu(s_ron_pyramid), cmap="hot")
+plt.imshow(to_cpu(s_ron_pyramid), cmap="inferno")
 plt.title("Phase pyramid sensitivity")
+plt.colorbar(label=r"$S_{ron}$")
 
 plt.figure()
-plt.imshow(to_cpu(s_ron_amplitude_pyramid), cmap="hot")
+plt.imshow(to_cpu(s_ron_amplitude_pyramid), cmap="inferno")
 plt.title("Amplitude pyramid sensitivity")
+plt.colorbar(label=r"$S_{ron}$")
 
 # %% Plot sensitivity curves
 
